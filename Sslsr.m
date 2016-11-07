@@ -45,7 +45,7 @@ classdef Sslsr < HandlePlus
         
         
         dWidth = 1380
-        dHeight = 450;
+        dHeight = 600;
         
         dWidthBtn = 24;
         
@@ -69,7 +69,7 @@ classdef Sslsr < HandlePlus
         dHeightPanelStages = 265;
         
         dWidthPanelPicoammeter = 550;
-        dHeightPanelPicoammeter = 150;
+        dHeightPanelPicoammeter = 400;
         
         dWidthMeta = 200;
         dWidthSettle = 100;
@@ -95,8 +95,11 @@ classdef Sslsr < HandlePlus
         
         % Stuff you want to be able to load / save and allow 
         
+        % {char 1xm} - the directory of this file
         cDirFile
+        % {char 1xm} - the directory for saving recipe.json files
         cDirRecipe
+        % {char 1xm} - the directory for saving result.json files
         cDirResult
         
         uipType
@@ -1267,11 +1270,15 @@ classdef Sslsr < HandlePlus
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
             cName = sprintf('Recipe-%s.json', cTimestamp);
+            
+            this.checkDir(this.cDirRecipe);
+            
             this.cPathRecipe = fullfile(...
                 this.cDirRecipe, ...
                 cName ...
             );
             
+        
             stOptions = struct();
             stOptions.FileName = this.cPathRecipe;
             stOptions.Compact = 0; 
@@ -2747,7 +2754,7 @@ classdef Sslsr < HandlePlus
             
             % Keithley
 
-            this.keithley.setApi(APIVKeithley6482);
+            this.keithley.setApi(APIKeithley6482);
             
             
         end
@@ -3050,15 +3057,11 @@ classdef Sslsr < HandlePlus
             this.cDirResult = fullfile(this.cDirFile, 'scans');
         
             this.initSettings();
-            
-            
-            
-            this.cDir = mfilename('fullpath');
+                       
             this.cDirSave = fullfile( ...
-                this.cDir, ...
-                '..', ...
+                this.cDirFile, ...
                 'save', ...
-                'nus' ...
+                'sslsr' ...
             ); 
         
         
