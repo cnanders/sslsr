@@ -1354,29 +1354,38 @@ classdef Sslsr < HandlePlus
                 st.(ceNames{n}) = this.stHIO.(ceNames{n}).hio.valCalDisplay();
             end
             
+            %{
             st.iZero = this.keithley.val(uint8(1));
             st.iDet = this.keithley.val(uint8(2));
-            st.keithleyADCIntegrationPLC = this.keithley.uipSpeed.val().dVal;
             
             st.keithleyCh1Range = this.keithley.uipRange1.val().cLabel;
             st.keithleyCh1AutoRange = this.keithley.uipAutoRange1.val().cState;
-            st.keithleyCh1AvgFilterState = this.keithley.uipAveragingFilter1.val().cState;
-            st.keithleyCh1AvgFilterMode = this.keithley.uipAveragingFilter1.val().cMode;
-            st.keithleyCh1AvgFilterSize = this.keithley.uieAveragingFilterSize1.val();
-            st.keithleyCh1MedianFilterState = this.keithley.uipMedianFilter1.val().cState;
-            st.keithleyCh1MedianFilterRank = this.keithley.uipMedianFilter1.val().u8Rank;
-            
-            
             st.keithleyCh2Range = this.keithley.uipRange2.val().cLabel;
             st.keithleyCh2AutoRange = this.keithley.uipAutoRange2.val().cState;
-            st.keithleyCh2AvgFilterState = this.keithley.uipAveragingFilter1.val().cState;
-            st.keithleyCh2AvgFilterMode = this.keithley.uipAveragingFilter1.val().cMode;
-            st.keithleyCh2AvgFilterSize = this.keithley.uieAveragingFilterSize2.val();
-            st.keithleyCh2MedianFilterState = this.keithley.uipMedianFilter2.val().cState;
-            st.keithleyCh2MedianFilterRank = this.keithley.uipMedianFilter2.val().u8Rank;
+            
+            st.keithleyADCIntegrationPLC = this.keithley.uipSpeed.val().dVal;
+            st.keithleyAvgFilterState = this.keithley.uipAveragingFilter1.val().cState;
+            st.keithleyAvgFilterMode = this.keithley.uipAveragingFilter1.val().cMode;
+            st.keithleyAvgFilterSize = this.keithley.uieAveragingFilterSize1.val();
+            st.keithleyMedianFilterState = this.keithley.uipMedianFilter1.val().cState;
+            st.keithleyMedianFilterRank = this.keithley.uipMedianFilter1.val().u8Rank;
+            %}           
             
             
+            st.iZero = this.keithley.getAPI().read(uint8(1));
+            st.iDet = this.keithley.getAPI().read(uint8(2));
+                   
+            st.keithleyCh1Range = this.keithley.getAPI().getRange(1);
+            st.keithleyCh1AutoRange = this.keithley.getAPI().getAutoRangeState(1);
+            st.keithleyCh2Range = this.keithley.getAPI().getRange(2);
+            st.keithleyCh2AutoRange = this.keithley.getAPI().getAutoRangeState(2);
             
+            st.keithleyADCIntegrationPeriod = this.keithley.getAPI().getIntegrationPeriod();
+            st.keithleyAvgFilterState = this.keithley.getAPI().getAverageState(1);
+            st.keithleyAvgFilterMode = this.keithley.getAPI().getAverageMode(1);
+            st.keithleyAvgFilterSize = this.keithley.getAPI().getAverageCount(1);
+            st.keithleyMedianFilterState = this.keithley.getAPI().getMedianState(1);
+            st.keithleyMedianFilterRank = this.keithley.getAPI().getMedianRank(1);
             
             st.time = datestr(datevec(now), 'yyyy-mm-dd HH:MM:SS', 'local');
             
@@ -2737,8 +2746,7 @@ classdef Sslsr < HandlePlus
             end
             
             % Keithley
-            cName = sprintf('%s-real', this.keithley.cName);
-            this.keithley.setApi(APIVKeithley6482(cName, this.clock));
+            this.keithley.setApi(APIVKeithley6482);
             
             
         end
@@ -2909,10 +2917,10 @@ classdef Sslsr < HandlePlus
             ); 
             
             
-            this.keithley = Keithley6482(struct(...
+            this.keithley = Keithley6482( ...
                 'cName', 'keithley 6482', ...
                 'clock', this.clock ...
-            ));
+            );
         
         
             mono = struct();
