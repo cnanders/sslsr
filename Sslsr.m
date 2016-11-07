@@ -2738,8 +2738,7 @@ classdef Sslsr < HandlePlus
             
             % Keithley
             cName = sprintf('%s-real', this.keithley.cName);
-            this.keithley.setApi(APIVKeithley6482(cName, this.clock));
-            
+            this.keithley.setApi(APIVKeithley6482);
             
         end
         
