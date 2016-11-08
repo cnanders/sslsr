@@ -1,6 +1,7 @@
 #1.0.0-alpha.3
 
 - Migrating to MIC v1.0.0-alpha.24
+- Using CamelCase consistent with MICv1.0.0-alpha.24.  E.g., API -> Api; APIV -> Apiv; HIOTX -> Hiotx
 
 #1.0.0-alpha.2
 
