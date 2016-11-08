@@ -45,7 +45,7 @@ classdef Sslsr < HandlePlus
         
         
         dWidth = 1380
-        dHeight = 600;
+        dHeight = 650;
         
         dWidthBtn = 24;
         
@@ -69,7 +69,7 @@ classdef Sslsr < HandlePlus
         dHeightPanelStages = 265;
         
         dWidthPanelPicoammeter = 550;
-        dHeightPanelPicoammeter = 400;
+        dHeightPanelPicoammeter = 350;
         
         dWidthMeta = 200;
         dWidthSettle = 100;
@@ -81,7 +81,7 @@ classdef Sslsr < HandlePlus
         cTooltipScanAbort = 'Abort the scan. All data up to now will be saved in the result.json file'
         cTooltipSwap = 'Flip device order.';
         
-        cTooltipConnect = 'Connect all hardware to the real API';
+        cTooltipConnect = 'Connect all hardware to the real Api';
         cTooltipDisconnect = 'Disconnect all hardware (go into virtual mode)';
         
         cTooltipMeta = 'Unique identifying information about the sample.  Will be included in scan result.json file';
@@ -289,7 +289,7 @@ classdef Sslsr < HandlePlus
         uitxDir
         uitxDirLabel
         
-        uitStageAPI % toggle for toggling all of the APIs at once
+        uitStageApi % toggle for toggling all of the Apis at once
         
     end
     
@@ -734,7 +734,7 @@ classdef Sslsr < HandlePlus
             delete(this.uitxProgress);            
 
 
-            delete(this.uitStageAPI);
+            delete(this.uitStageApi);
             
             
             delete(this.hFigure);
@@ -1379,20 +1379,20 @@ classdef Sslsr < HandlePlus
             %}           
             
             
-            st.iZero = this.keithley.getAPI().read(uint8(1));
-            st.iDet = this.keithley.getAPI().read(uint8(2));
+            st.iZero = this.keithley.getApi().read(uint8(1));
+            st.iDet = this.keithley.getApi().read(uint8(2));
                    
-            st.keithleyCh1Range = this.keithley.getAPI().getRange(1);
-            st.keithleyCh1AutoRange = this.keithley.getAPI().getAutoRangeState(1);
-            st.keithleyCh2Range = this.keithley.getAPI().getRange(2);
-            st.keithleyCh2AutoRange = this.keithley.getAPI().getAutoRangeState(2);
+            st.keithleyCh1Range = this.keithley.getApi().getRange(1);
+            st.keithleyCh1AutoRange = this.keithley.getApi().getAutoRangeState(1);
+            st.keithleyCh2Range = this.keithley.getApi().getRange(2);
+            st.keithleyCh2AutoRange = this.keithley.getApi().getAutoRangeState(2);
             
-            st.keithleyADCIntegrationPeriod = this.keithley.getAPI().getIntegrationPeriod();
-            st.keithleyAvgFilterState = this.keithley.getAPI().getAverageState(1);
-            st.keithleyAvgFilterMode = this.keithley.getAPI().getAverageMode(1);
-            st.keithleyAvgFilterSize = this.keithley.getAPI().getAverageCount(1);
-            st.keithleyMedianFilterState = this.keithley.getAPI().getMedianState(1);
-            st.keithleyMedianFilterRank = this.keithley.getAPI().getMedianRank(1);
+            st.keithleyADCIntegrationPeriod = this.keithley.getApi().getIntegrationPeriod();
+            st.keithleyAvgFilterState = this.keithley.getApi().getAverageState(1);
+            st.keithleyAvgFilterMode = this.keithley.getApi().getAverageMode(1);
+            st.keithleyAvgFilterSize = this.keithley.getApi().getAverageCount(1);
+            st.keithleyMedianFilterState = this.keithley.getApi().getMedianState(1);
+            st.keithleyMedianFilterRank = this.keithley.getApi().getMedianRank(1);
             
             st.time = datestr(datevec(now), 'yyyy-mm-dd HH:MM:SS', 'local');
             
@@ -2678,7 +2678,7 @@ classdef Sslsr < HandlePlus
             this.hPanelPicoammeter =  uipanel(...
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
-                'Title', 'Picoammeter',...
+                'Title', 'Keithley 6482 Dual-Channel Picoammeter',...
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'Position', dPos ...
@@ -2718,10 +2718,10 @@ classdef Sslsr < HandlePlus
             dLeft = 10;
             dTop = 15;
            
-            this.uitStageAPI.build(this.hPanelStages, dLeft, dTop, 120, this.dWidthBtn);
+            this.uitStageApi.build(this.hPanelStages, dLeft, dTop, 120, this.dWidthBtn);
             dLeft = dLeft + this.dWidthBtn + 5; 
             
-            % this.uitxLabelStagesAPI.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
+            % this.uitxLabelStagesApi.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
             % dLeft = dLeft + 50;
             
             dTop = 55;
@@ -2741,21 +2741,36 @@ classdef Sslsr < HandlePlus
             
         end
         
-        function assignAPIs(this)
+        function assignApis(this)
             
-            % Temporarily set all APIs to virtual APIs
+            % Temporarily set all Apis to virtual Apis
             
             % HIOs
             ceNames = fieldnames(this.stHIO);
             for n = 1:length(ceNames)
                 cName = sprintf('%s-real', this.stHIO.(ceNames{n}).hio.cName);
-                this.stHIO.(ceNames{n}).hio.setApi(APIVHardwareIO(cName, 0, this.clock));
+                this.stHIO.(ceNames{n}).hio.setApi(ApivHardwareIOPlus(cName, 0, this.clock));
             end
             
             % Keithley
 
-            this.keithley.setApi(APIKeithley6482);
+            this.keithley.setApi(ApivKeithley6482);
             
+            
+        end
+        
+        
+        function setApis(this)
+            
+            api = ApiSslsr();
+            api.init();
+            this.hioMaskX.setApi(ApiHioFromAxis(api.getMaskX()));
+            this.hioMaskY.setApi(ApiHioFromAxis(api.getMaskY()));
+            this.hioMaskZ.setApi(ApiHioFromAxis(api.getMaskZ()));
+            this.hioMaskT.setApi(ApiHioFromAxis(api.getMaskT()));
+            this.hioDetX.setApi(ApiHioFromAxis(api.getDetX()));
+            this.hioDetT.setApi(ApiHioFromAxis(api.getDetT()));
+            this.hioMono.setApi(ApiHioFromAxis(api.getMono()));
             
         end
         
@@ -2815,14 +2830,14 @@ classdef Sslsr < HandlePlus
                 'filterY.json' ...
             );
             
-            configMono = Config(cPathConfigMono);
-            configMaskX = Config(cPathConfigMaskX);
-            configMaskY = Config(cPathConfigMaskY);
-            configMaskZ = Config(cPathConfigMaskZ);
-            configMaskT = Config(cPathConfigMaskT);
-            configDetX = Config(cPathConfigDetX);
-            configDetT = Config(cPathConfigDetT);
-            configFilterY = Config(cPathConfigFilterY);
+            configMono = ConfigHardwareIOPlus(cPathConfigMono);
+            configMaskX = ConfigHardwareIOPlus(cPathConfigMaskX);
+            configMaskY = ConfigHardwareIOPlus(cPathConfigMaskY);
+            configMaskZ = ConfigHardwareIOPlus(cPathConfigMaskZ);
+            configMaskT = ConfigHardwareIOPlus(cPathConfigMaskT);
+            configDetX = ConfigHardwareIOPlus(cPathConfigDetX);
+            configDetT = ConfigHardwareIOPlus(cPathConfigDetT);
+            configFilterY = ConfigHardwareIOPlus(cPathConfigFilterY);
             
             % Mono
             this.hioMono = HardwareIOPlus(...
@@ -3005,7 +3020,7 @@ classdef Sslsr < HandlePlus
             st1 = struct();
             st1.lAsk        = true;
             st1.cTitle      = 'Switch?';
-            st1.cQuestion   = 'Do you want to connect all hardware to the real API?';
+            st1.cQuestion   = 'Do you want to connect all hardware to the real Api?';
             st1.cAnswer1    = 'Yes.';
             st1.cAnswer2    = 'No not yet.';
             st1.cDefault    = st1.cAnswer2;
@@ -3019,7 +3034,7 @@ classdef Sslsr < HandlePlus
             st2.cAnswer2    = 'No not yet.';
             st2.cDefault    = st2.cAnswer2;
 
-            this.uitStageAPI = UIToggle( ...
+            this.uitStageApi = UIToggle( ...
                 'Connect', ...   % (off) not active
                 'Disconnect', ...  % (on) active
                 false, ...
@@ -3029,9 +3044,9 @@ classdef Sslsr < HandlePlus
                 st2 ...
             );
         
-            this.uitStageAPI.setTooltip(this.cTooltipConnect);
+            this.uitStageApi.setTooltip(this.cTooltipConnect);
         
-            addlistener(this.uitStageAPI, 'eChange', @this.onStageAPIChange);
+            addlistener(this.uitStageApi, 'eChange', @this.onStageApiChange);
 
         end
         
@@ -3066,7 +3081,7 @@ classdef Sslsr < HandlePlus
         
         
             this.initHardware(); 
-            this.assignAPIs();
+            this.assignApis();
                         
             
             this.uibChooseRecipe = UIButton('Choose Script');
@@ -3234,7 +3249,7 @@ classdef Sslsr < HandlePlus
         end
         
         
-        function onStageAPIChange(this, src, evt)
+        function onStageApiChange(this, src, evt)
             if src.lVal
                 this.turnOn();
                 src.setTooltip(this.cTooltipDisconnect);

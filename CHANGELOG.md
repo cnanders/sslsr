@@ -1,3 +1,7 @@
+#1.0.0-alpha.3
+
+- Migrating to MIC v1.0.0-alpha.24
+
 #1.0.0-alpha.2
 
 - Moving to latest MIC release that includes complete Keithley6482
