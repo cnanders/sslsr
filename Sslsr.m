@@ -291,6 +291,9 @@ classdef Sslsr < HandlePlus
         
         uitStageApi % toggle for toggling all of the Apis at once
         
+        
+        uibLoadLock
+        
     end
     
         
@@ -2721,6 +2724,8 @@ classdef Sslsr < HandlePlus
             this.uitStageApi.build(this.hPanelStages, dLeft, dTop, 120, this.dWidthBtn);
             dLeft = dLeft + this.dWidthBtn + 5; 
             
+            this.uibLoadLock.build(this.hPanelStages, 150, dTop, 120, 24) 
+            
             % this.uitxLabelStagesApi.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
             % dLeft = dLeft + 50;
             
@@ -2759,9 +2764,11 @@ classdef Sslsr < HandlePlus
             
         end
         
+        % This method should only called ONE TIME
         
         function setApis(this)
             
+       
             api = ApiSslsr();
             api.init();
             this.hioMaskX.setApi(ApiHioFromAxis(api.getMaskX()));
@@ -3083,6 +3090,8 @@ classdef Sslsr < HandlePlus
             this.initHardware(); 
             this.assignApis();
                         
+            this.uibLoadLock = UIButton('Sample -> LL');
+            addlistener(this.uibLoadLock, 'ePress', @this.onLoadLockPress);
             
             this.uibChooseRecipe = UIButton('Choose Script');
             this.uibOpenRecipe = UIButton('Open Script');
@@ -3260,7 +3269,68 @@ classdef Sslsr < HandlePlus
             end            
         end
         
+        
+        function onLoadLockPress(this, src, evt)
+            
+            stRecipe = this.buildLoadLockRecipe();
+            
+            % Create new StateScan and start it
+            this.scan = StateScan(...
+                this.clock, ...
+                stRecipe, ...
+                @this.onStateScanSetState, ...
+                @this.onStateScanIsAtState, ...
+                @this.onStateScanAcquireLL, ... % doesn't do anything
+                @this.onStateScanIsAcquired, ... % returs true
+                @this.onStateScanCompleteLL, ...
+                @this.onStateScanAbortLL ...
+            );
+        
+            this.resetStatus();
+            this.uitxStatus.cVal = 'Moving to LL ...';
+            this.scan.start();
+            
+        end
+        
+        function stRecipe = buildLoadLockRecipe(this)
+            
+            
+            % Build recipe structure.  Temporarily assume want to move
+            % MaskT and DetT, but later on can make what it needs to be.
+                        
+            stUnit = struct();            
+            stUnit.(this.cFieldMaskT) = this.stHIO.(this.cFieldMaskT).hio.unit().name;
+            stUnit.(this.cFieldDetT) = this.stHIO.(this.cFieldDetT).hio.unit().name;
+            
+            % Value structure of LL state
+            stValue = struct();
+            stValue.(this.cFieldMaskT) = 5;
+            stValue.(this.cFieldDetT) = 10;
+            
+            ceValues = cell(1, 1); 
+            ceValues{1} = stValue;
+            
+            stRecipe = struct();
+            stRecipe.unit = stUnit;
+            stRecipe.values = ceValues;
+            
+        end
+        
+        function onStateScanAcquireLL(this, stUnit)
+            % Don't do anything
+        end
+        
+        function onStateScanCompleteLL(this, stUnit)
+            % Don't do anything
+            this.uitxStatus.cVal = 'Sample at LL';
+        end
+        
+        function onStateScanAbortLL(this, stUnit)
+            % Don't do anything
+        end
+        
     end 
     
     
 end
+
