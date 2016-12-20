@@ -1,3 +1,8 @@
+# 1.0.0-alpha.5
+
+- Migrating to mic.v1.0.0-alpha.33.  This required changing instances of Utils.\*() to MicUtils.\*()
+- Building scoped package for project classes (outside of MIC library)
+
 # 1.0.0-alpha.4
 
 - Added Sample -> LL button on Stages panel and implemented a state scan to move the system to the LL state.  Currently the state is temporary.  Need to update with true LL state.

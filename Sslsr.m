@@ -45,31 +45,31 @@ classdef Sslsr < HandlePlus
         
         
         dWidth = 1380
-        dHeight = 650;
+        dHeight = 450 % 650;
         
-        dWidthBtn = 24;
+        dWidthBtn = 24
         
-        dWidthEdit = 50;
-        dHeightEdit = 24;
-        dSizeMarker = 8;
+        dWidthEdit = 50
+        dHeightEdit = 24
+        dSizeMarker = 8
         
-        dWidthScan = 800;
-        dHeightScan = 100;
+        dWidthScan = 800
+        dHeightScan = 100
         
-        dWidthSettings = 800;
-        dHeightSettings = 70;
+        dWidthSettings = 800
+        dHeightSettings = 70
         
-        dHeightResult = 250;
+        dHeightResult = 250
         
-        dWidthOperator = 80;
-        dWidthDir = 350;
-        dWidthEditSep = 5;
+        dWidthOperator = 80
+        dWidthDir = 350
+        dWidthEditSep = 5
         
-        dWidthPanelStages = 550;
-        dHeightPanelStages = 265;
+        dWidthPanelStages = 550
+        dHeightPanelStages = 265
         
         dWidthPanelPicoammeter = 550;
-        dHeightPanelPicoammeter = 350;
+        dHeightPanelPicoammeter = 80; % 350;
         
         dWidthHioName = 40;
         dWidthHioVal = 50;
@@ -98,11 +98,9 @@ classdef Sslsr < HandlePlus
         
         % Stuff you want to be able to load / save and allow 
         
-        % {char 1xm} - the directory of this file
-        cDirFile
-        % {char 1xm} - the directory for saving recipe.json files
+        % {char 1xm} - absolute directory for saving recipe.json files
         cDirRecipe
-        % {char 1xm} - the directory for saving result.json files
+        % {char 1xm} - absolute directory for saving result.json files
         cDirResult
         
         uipType
@@ -151,28 +149,50 @@ classdef Sslsr < HandlePlus
         hioDetX
         hioDetT
         hioFilterY
-        
-
-        
         keithley
         
+        % {double 1xm} x axis on 1D plot storage for the value of the scanned parameter
+        d1DResultParam      
+        % {double 1xm} y axis on 1D plot storage for iDet
+        d1DResultIDet 
+        % {double 1xm} y axis on 1D plot storage for iZero
+        d1DResultIZero      
         
-        d1DResultParam      % x axis on plot storage for the value of the scanned parameter
-        d1DResultIDet       % y axis on plot storage fir iDet
-        d1DResultIZero      % y axis on plot storage for iZero
+        % {double nxm} x mesh on mesh/contour plot 
+        d2DResultParam1 
+        % {double nxm} y mesn on mesh/contour plot
+        d2DResultParam2
+        % {double nxm} z mesh iDet
+        d2DResultIDet 
+        % {double nxm} z mesh iZero
+        d2DResultIZero     
         
-        d2DResultParam1     % x axis on mesh/contour plot 
-        d2DResultParam2     % y axis on mesh/contour plot
-        d2DResultIDet       % z axis
-        d2DResultIZero      % z axis
+        % {double 1xm} storage for time of each set + acquire
+        dTime 
         
-        dTime               % storage for time of each set + acquire
-        cPathRecipe         % char {1xm} the recipe file that is active
-        cPathRecipeUser     % char {1xm} the last recipe file selected by 
-                            % the user (for "script" scans)
+        % {char 1xm} absolute directory of this file
+        cDirThis
+        
+        % {char 1xm} absolute full path (including filename and extension)
+        % of .jar file fir SinsInstruments
+        cPathJarSins
+        
+        % {char 1xm} absolute full path (including filename and extension)
+        % of recipe file that is active
+        cPathRecipe 
+        % {char 1xm} absolute full path (including filename and extension)
+        % of the last recipe file selected by the user (for "script" scans)
+        cPathRecipeUser 
+        % {double 1x1} fractional progress of the state scan 0 < progress <
+        % 1. Used to update the activity status during the scan
         dProgress
         
-        stUnitLive          % storage of state units when live logging begins
+        % {struct 1x1} storage of state units when live logging begins
+        stUnitLive  
+        
+        % {struct 1x1} storage of state of the keithley (range, settings)
+        % when scan begins
+        stStateKeithley
         
     end
     
@@ -1325,6 +1345,7 @@ classdef Sslsr < HandlePlus
             stResult.meta = this.uieMeta.val();
             stResult.settle = this.uieSettle.val();
             stResult.unit = stUnit;
+            stResult.keithley = this.stStateKeithley;
             stResult.values = this.ceValues;
             
             stOptions = struct();
@@ -1387,7 +1408,8 @@ classdef Sslsr < HandlePlus
             
             st.iZero = this.keithley.getApi().read(uint8(1));
             st.iDet = this.keithley.getApi().read(uint8(2));
-                   
+              
+            %{
             st.keithleyCh1Range = this.keithley.getApi().getRange(1);
             st.keithleyCh1AutoRange = this.keithley.getApi().getAutoRangeState(1);
             st.keithleyCh2Range = this.keithley.getApi().getRange(2);
@@ -1399,8 +1421,29 @@ classdef Sslsr < HandlePlus
             st.keithleyAvgFilterSize = this.keithley.getApi().getAverageCount(1);
             st.keithleyMedianFilterState = this.keithley.getApi().getMedianState(1);
             st.keithleyMedianFilterRank = this.keithley.getApi().getMedianRank(1);
+            %}
             
             st.time = datestr(datevec(now), 'yyyy-mm-dd HH:MM:SS', 'local');
+            
+        end
+        
+        % @return {struct 1x1} - the state of the Keithley range and
+        % settings
+        function st = getKeithleyState(this)
+            
+            st = struct();
+            
+            st.ch1Range = this.keithley.getApi().getRange(1);
+            st.ch1AutoRange = this.keithley.getApi().getAutoRangeState(1);
+            st.ch2Range = this.keithley.getApi().getRange(2);
+            st.ch2AutoRange = this.keithley.getApi().getAutoRangeState(2);
+            
+            st.adcIntegrationPeriod = this.keithley.getApi().getIntegrationPeriod();
+            st.avgFilterState = this.keithley.getApi().getAverageState(1);
+            st.avgFilterMode = this.keithley.getApi().getAverageMode(1);
+            st.avgFilterSize = this.keithley.getApi().getAverageCount(1);
+            st.medianFilterState = this.keithley.getApi().getMedianState(1);
+            st.medianFilterRank = this.keithley.getApi().getMedianRank(1);
             
         end
         
@@ -1457,6 +1500,7 @@ classdef Sslsr < HandlePlus
                 
             stRecipe = struct();
             stRecipe.unit = this.getSystemUnits();
+            % stRecipe.keithley = this.getKeithleyState();
             stRecipe.values = ceValues;
             
         end
@@ -1529,6 +1573,7 @@ classdef Sslsr < HandlePlus
                 
             stRecipe = struct();
             stRecipe.unit = this.getSystemUnits();
+            stRecipe.keithley = this.getKeithleyState();
             stRecipe.values = ceValues;
             
         end
@@ -1592,6 +1637,9 @@ classdef Sslsr < HandlePlus
             
             this.ceValues = cell(size(stRecipe.values));
             this.dTime = zeros(size(stRecipe.values));
+            
+            % Store this so it can be reported in saveScanResults
+            this.stStateKeithley = this.getKeithleyState();
             
             this.uitxStatus.cVal = sprintf('Scanning (%1.1f%%)', this.dProgress * 100);
             this.scan.start();
@@ -2268,7 +2316,7 @@ classdef Sslsr < HandlePlus
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'Title', 'Settings', ...
-                'Position', Utils.lt2lb([10 10 this.dWidthSettings this.dHeightSettings], this.hFigure) ...
+                'Position', MicUtils.lt2lb([10 10 this.dWidthSettings this.dHeightSettings], this.hFigure) ...
             );
         
             dLeft = 20;
@@ -2346,7 +2394,7 @@ classdef Sslsr < HandlePlus
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'Title', 'Scan', ...
-                'Position', Utils.lt2lb([10 this.dHeightSettings + 20 this.dWidthScan this.dHeightScan], this.hFigure) ...
+                'Position', MicUtils.lt2lb([10 this.dHeightSettings + 20 this.dWidthScan this.dHeightScan], this.hFigure) ...
             );
             % 'BackgroundColor', [1 1 1], ...
 
@@ -2607,7 +2655,7 @@ classdef Sslsr < HandlePlus
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'BackgroundColor', dColorBg, ...
-                'Position', Utils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
+                'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
             );
         
             % 'Title', 'Results (2D Scan)',...
@@ -2620,7 +2668,7 @@ classdef Sslsr < HandlePlus
                 'Visible', 'off', ...
                 'BorderWidth', 0, ...
                 'BackgroundColor', dColorBg, ...
-                'Position', Utils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
+                'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
             );
             
                
@@ -2633,7 +2681,7 @@ classdef Sslsr < HandlePlus
             this.hAxes1D = axes(...
                 'Parent', this.hPanelResult1D,...
                 'Units', 'pixels',...
-                'Position',Utils.lt2lb([dWidthPadL, dTop, dWidth, dHeight], this.hPanelResult1D),...
+                'Position',MicUtils.lt2lb([dWidthPadL, dTop, dWidth, dHeight], this.hPanelResult1D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
                 'HandleVisibility','on'...
@@ -2649,7 +2697,7 @@ classdef Sslsr < HandlePlus
             this.hAxes2D1 = axes(...
                 'Parent', this.hPanelResult2D,...
                 'Units', 'pixels',...
-                'Position',Utils.lt2lb([dWidthPadL,  dTop, dWidth, dHeight], this.hPanelResult2D),...
+                'Position',MicUtils.lt2lb([dWidthPadL,  dTop, dWidth, dHeight], this.hPanelResult2D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
                 'HandleVisibility','on'...
@@ -2660,7 +2708,7 @@ classdef Sslsr < HandlePlus
             this.hAxes2D2 = axes(...
                 'Parent', this.hPanelResult2D,...
                 'Units', 'pixels',...
-                'Position',Utils.lt2lb([dWidthPadL + dWidth + dWidthPadL2,  dTop, dWidth, dHeight], this.hPanelResult2D),...
+                'Position',MicUtils.lt2lb([dWidthPadL + dWidth + dWidthPadL2,  dTop, dWidth, dHeight], this.hPanelResult2D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
                 'HandleVisibility','on'...
@@ -2671,7 +2719,7 @@ classdef Sslsr < HandlePlus
         
         function buildPanelPicoammeter(this)
            
-            dPos = Utils.lt2lb(...
+            dPos = MicUtils.lt2lb(...
                 [...
                     this.dWidthScan + 20 ...
                     this.dHeightPanelStages  + 20 ...
@@ -2690,13 +2738,13 @@ classdef Sslsr < HandlePlus
                 'Position', dPos ...
             );
             
-            this.keithley.build(this.hPanelPicoammeter, 10, 20);
+            this.keithley.build(this.hPanelPicoammeter, 0, 10);
             
         end
         
         function buildPanelStages(this)
             
-            dPos = Utils.lt2lb(...
+            dPos = MicUtils.lt2lb(...
                 [...
                     this.dWidthScan + 20  ... % l
                     10 ... % t
@@ -2771,16 +2819,75 @@ classdef Sslsr < HandlePlus
         
         function setApis(this)
             
-       
-            api = ApiSslsr();
-            api.init();
-            this.hioMaskX.setApi(ApiHioFromAxis(api.getMaskX()));
-            this.hioMaskY.setApi(ApiHioFromAxis(api.getMaskY()));
-            this.hioMaskZ.setApi(ApiHioFromAxis(api.getMaskZ()));
-            this.hioMaskT.setApi(ApiHioFromAxis(api.getMaskT()));
-            this.hioDetX.setApi(ApiHioFromAxis(api.getDetX()));
-            this.hioDetT.setApi(ApiHioFromAxis(api.getDetT()));
-            this.hioMono.setApi(ApiHioFromAxis(api.getMono()));
+            this.loadJar();
+            
+            sins = cxro.common.device.Sins2Instruments();
+            
+            maskX = sins.getMaskX();
+            maskY = sins.getMaskY();
+            maskZ = sins.getMaskZ();
+            maskT = sins.getMaskT();
+            detX = sins.getDetectorX();
+            detT = sins.getDetectorT();
+            filterY = sins.getFilterStage();
+            
+            % Connect and initialize so they are ready for commands
+            maskX.initialize();
+            maskY.initialize();
+            maskZ.initialize();
+            maskT.initialize();
+            detX.initialize();
+            detT.initialize();
+            filterY.initialize();
+            
+            this.hioMaskX.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskX));
+            this.hioMaskY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskY));
+            this.hioMaskZ.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskZ));
+            this.hioMaskT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskT));
+            this.hioDetX.setApi(sins.axis.ApiHardwareIOPlusFromAxis(detX));
+            this.hioDetT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(detT));
+            this.hioFilterY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(filterY));
+            
+            % Mono 
+            % FIX ME
+            % this.hioMono.setApi(ApiHardwareIOPlusFromAxis());
+            
+            this.keithley.setApi(ApiKeithley6482);
+            
+        end
+        
+        
+        function loadJar(this)
+            
+            
+            if this.jarIsLoaded()
+                return;
+            end
+            
+            % Temporarily set user.dir to the parent directory of the .jar
+            % so it can load dependencies (not sure if this is necessary)
+            
+            cDirJar = fileparts(this.cPathJarSins); 
+            java.lang.System.setProperty('user.dir', cDirJar);
+
+            
+            javaaddpath(this.cPathJarSins);
+            
+        end
+        
+        function l = jarIsLoaded(this)
+           
+            % DPE == Dynamic Path Entries
+            
+            ceDPE = javaclasspath;
+            for k = 1:length(ceDPE)
+                if strcmp(ceDPE{k}, this.cPathJarSins)
+                    l = true;
+                    return;
+                end
+            end
+            
+            l = false;
             
         end
         
@@ -2789,52 +2896,52 @@ classdef Sslsr < HandlePlus
                         
                         
             cPathConfigMono = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'mono.json' ...
             );
             cPathConfigMaskX = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'maskX.json' ...
             );
             
             cPathConfigMaskY = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'maskY.json' ...
             );
             cPathConfigMaskZ = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'maskZ.json' ...
             );
             
             cPathConfigMaskT = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'maskT.json' ...
             );
             cPathConfigDetX = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'detX.json' ...
             );
             cPathConfigDetT = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'detT.json' ...
             );
             
             cPathConfigFilterY = fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'config', ...
                 'hiop', ...
                 'filterY.json' ...
@@ -2968,7 +3075,9 @@ classdef Sslsr < HandlePlus
             
             this.keithley = Keithley6482( ...
                 'cName', 'keithley 6482', ...
-                'clock', this.clock ...
+                'clock', this.clock, ...
+                'lShowRange', false, ...
+                'lShowSettings', false ...
             );
         
         
@@ -3091,16 +3200,23 @@ classdef Sslsr < HandlePlus
         
         function init(this)
             
-            [cPath, cName, cExt] = fileparts(mfilename('fullpath'));            
+            [this.cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));            
 
-            this.cDirFile = cPath;
-            this.cDirRecipe  = fullfile(this.cDirFile, 'scans');
-            this.cDirResult = fullfile(this.cDirFile, 'scans');
+            this.cDirRecipe  = fullfile(this.cDirThis, 'scans');
+            this.cDirResult = fullfile(this.cDirThis, 'scans');
+            
+            % Add files to Java class path
+            this.cPathJarSins = fullfile(...
+                this.cDirThis, ...
+                'jar', ...
+                'jdk7', ...
+                'Sins2Instruments.jar' ...
+            ); 
         
             this.initSettings();
                        
             this.cDirSave = fullfile( ...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'save', ...
                 'sslsr' ...
             ); 
@@ -3200,7 +3316,7 @@ classdef Sslsr < HandlePlus
             
             
             this.u8Swap     = imread(fullfile(...
-                this.cDirFile, ...
+                this.cDirThis, ...
                 'assets', ...
                 'swap-20-2.png'...
             ));
