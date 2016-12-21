@@ -12,8 +12,8 @@ classdef Interface < HandlePlus
        % stop motion, normal deceleration.
        stopMove(this)
        
-       % initialize
-       initialize(this)
+       % @return {future 1x1} future
+       future = initialize(this)
                
     end
     
