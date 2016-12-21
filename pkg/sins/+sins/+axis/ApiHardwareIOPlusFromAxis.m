@@ -60,6 +60,16 @@ classdef ApiHardwareIOPlusFromAxis < InterfaceApiHardwareIOPlus
         end
         
         
+        function initialize(this)
+            this.axis.initialize();
+        end
+        
+        function l = isInitialized(this)
+            l = this.axis.isInitialized();
+        end
+            
+        
+        
 
     end %methods
 end %class

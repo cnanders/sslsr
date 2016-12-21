@@ -1,3 +1,9 @@
+# 1.0.0-alpha.6
+
+- Migrated Sslsr.m into sins.main.Main()
+- Built sins.sins.SinsTest() class that builds maskT and filterY and connects to Carl's test jar
+- refactored pkg directory so it can support multiple package root folders
+
 # 1.0.0-alpha.5
 
 - Migrating to mic.v1.0.0-alpha.33.  This required changing instances of Utils.\*() to MicUtils.\*()

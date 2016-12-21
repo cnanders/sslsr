@@ -2,32 +2,32 @@
 	"delay": 0.1,
 	"units": [
 		{
-			"name": "m",
+			"name": "mm",
 			"slope": 1,
 			"offset": 0,
 			"precision": 3
 		},
 		{
-			"name": "mm",
+			"name": "um",
 			"slope": 1000,
 			"offset": 0,
-			"precision": 1
+			"precision": 3
 		},
 		{
-			"name": "um",
-			"slope": 1000000,
+			"name": "m",
+			"slope": 1e-3,
 			"offset": 0,
-			"precision": 1
+			"precision": 3
 		}
 	],
     "stores": [
         {
-            "name": "silicon",
-            "raw": 1.5
+            "name": "test-a",
+            "raw": 10
         },
         {
-            "name": "berillium",
-            "raw": 10
+            "name": "test-b",
+            "raw": 20
         }
     ]
 }	
