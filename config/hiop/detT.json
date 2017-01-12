@@ -4,23 +4,25 @@
 		{
 			"name": "deg",
 			"slope": 1,
-			"offset": 0,
+			"offset": -90,
 			"precision": 3
 		},
 		{
 			"name": "mdeg",
 			"slope": 1000,
-			"offset": 0,
-			"precision": 3
+			"offset": -90,
+			"precision": 1
 		},
 		{
 			"name": "mrad",
 			"slope": 17.453292519943297,
-			"offset": 0,
-			"precision": 3
+			"offset": -90,
+			"precision": 1
 		},
 		
 	]
+    "min": -100,
+    "max": 180
 }	
 	
 	

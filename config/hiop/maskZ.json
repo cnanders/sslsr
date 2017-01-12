@@ -2,24 +2,21 @@
 	"delay": 0.1,
 	"units": [
 		{
-			"name": "m",
+			"name": "mm",
 			"slope": 1,
 			"offset": 0,
 			"precision": 3
 		},
 		{
-			"name": "mm",
-			"slope": 1000,
-			"offset": 0,
-			"precision": 1
-		},
-		{
 			"name": "um",
-			"slope": 1000000,
+			"slope": 1000,
 			"offset": 0,
 			"precision": 1
 		}
 	],
+	"step": 5,
+    "min": -30,
+    "max": 30
 }	
 	
 	

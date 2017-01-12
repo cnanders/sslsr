@@ -1,3 +1,15 @@
+# 1.0.0-alpha.7
+
+### sins.axis.ApiHardwareIOPlusFromAxis
+- Implemented a second approach for set() and isReady() that allow updates mid-move.  See notes in class file
+
+### sins.main.Main
+
+- Added device* properties, i.e., deviceSins, deviceMaskX, deviceMaskY, etc.  Anything prefixed with device directly talks to hardware
+- Updated assignApis() to use ApiHardwareIO*FromAxis(deviceMaskX) 
+- UNDO on items 1 and 2.  Found out that having properties of the class that reference Java objects is a problem. I now directly create the API
+- Refactored delete() into several delete*() methods that compartmentally delete related groups of objects/references
+
 # 1.0.0-alpha.6
 
 - Migrated Sslsr.m into sins.main.Main()

@@ -43,10 +43,13 @@ classdef Main < HandlePlus
         cFieldFilterY = 'filterY';
         cFieldDelay = 'delay';
         
+        % {double 1x3} RGB triplet. Each value in range [0, 1]
+        dColorBgStages = [.94 .94 .94]; % MATLAB default
         
-        dWidth = 1380
+        dWidth = 1480
         dHeight = 450 % 650;
         
+        dWidthPad = 10;
         dWidthBtn = 24
         
         dWidthEdit = 50
@@ -71,13 +74,16 @@ classdef Main < HandlePlus
         dWidthPanelPicoammeter = 550;
         dHeightPanelPicoammeter = 80; % 350;
         
-        dWidthHioName = 40;
+        dWidthHioName = 50;
         dWidthHioVal = 50;
+        dWidthHioUnit = 60;
         
         dWidthMeta = 200;
         dWidthSettle = 100;
         
         dWidthPlay = 60;
+        
+        dSizeFont = 8;
         
         cTooltipScanResume = 'Continue with the scan'
         cTooltipScanStart = 'Begin a new scan with the current configuration'
@@ -194,6 +200,27 @@ classdef Main < HandlePlus
         % when scan begins
         stStateKeithley
         
+        %{
+        % {nus.sins2.Sins2Instruments 1x1}
+        deviceSins
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceMaskX
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceMaskY
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceMaskZ
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceMaskT
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceDetX
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceDetT
+        % {cxro.common.device.axis.Axis 1x1}
+        deviceFilterY
+        % {< InterfaceKeithley6482 1x1}
+        deviceKeithley
+        %}
+        
     end
     
     properties (Access = private)
@@ -239,6 +266,8 @@ classdef Main < HandlePlus
         
         hLines2D1IDet        % {1xm} handles of lines on hAxes2D1 IDet
         hLines2D1IZero       % {1xm} handles of lines on hAxes2D1 IZero
+        % {handle 1x(mxn)} handles of lines on hAxes2D2
+        hLines2D2
         hLegend2D1           % {1x1} handle of legend on hAxes2D1
         
         % The reason we bother with storing the handles of the lines and
@@ -693,35 +722,50 @@ classdef Main < HandlePlus
         
         end
         
-        function delete(this)
+        function deleteDevices(this)
             
-            this.msg('delete()');
-            % this.save();
-     
+            return;
+            this.msg('deleteDevices()');
+            
+            
+            % this.deviceSins.destroy();
+            this.deviceMaskX.destroy(); 
+            this.deviceMaskY.destroy();
+            this.deviceMaskZ.destroy();
+            this.deviceMaskT.destroy();
+            this.deviceDetX.destroy();
+            this.deviceDetT.destroy();
+            % this.deviceFilterY.destroy();
+            
+            delete(this.deviceKeithley);
+            
+        end
+        
+        function deleteHardwareUI(this)
+            this.msg('deleteHardwareUI()');
+            
+            this.turnOff();
             delete(this.hioMono);
-                        
             delete(this.hioMaskX);
             delete(this.hioMaskY);
             delete(this.hioMaskZ);
             delete(this.hioMaskT);
-                        
             delete(this.hioDetX);
             delete(this.hioDetT);
             delete(this.hioFilterY);
             delete(this.keithley);
-            
-            % Settings Panel
-            
+        end
+        
+        function deleteSettingsPanel(this)
             delete(this.uieOperator);
             delete(this.uieMeta);
             delete(this.uieSettle);
-            
             delete(this.uibChooseDir);
             delete(this.uitxDir);
             delete(this.uitxDirLabel);
-            
-            % Scan Panel
-            
+        end
+        
+        function deleteScanPanel(this)
             delete(this.uipType);
             delete(this.uipDevice1);
             delete(this.uieStart1);
@@ -743,7 +787,6 @@ classdef Main < HandlePlus
             delete(this.uibOpenRecipe);
             delete(this.uitxRecipe);
             
-            
             delete(this.uitPlay);   % button to
             delete(this.uibCancel);
 
@@ -757,12 +800,21 @@ classdef Main < HandlePlus
             delete(this.uitxTimeElapsed);
             delete(this.uitxTimeComplete);
             delete(this.uitxStatus);
-            delete(this.uitxProgress);            
-
-
+            delete(this.uitxProgress); 
+        end
+        
+        function delete(this)
+            
+            this.msg('delete()');
+            % this.save();
+     
+            this.deleteHardwareUI();
+            this.deleteDevices();
+            this.deleteSettingsPanel();
+            this.deleteScanPanel();
+            
+            
             delete(this.uitStageApi);
-            
-            
             delete(this.hFigure);
             delete(this.clock);
             
@@ -1805,7 +1857,10 @@ classdef Main < HandlePlus
                     
                     if isempty(this.hLegend1D)
                     	this.hLegend1D = legend(this.hAxes1D, 'Idet','Izero');
+                        set(this.hLegend1D, 'FontSize', this.dSizeFont);
                     end
+                    
+                    set(this.hAxes1D, 'FontSize', this.dSizeFont);
 
                                 
                 case this.cTypeTwoDevice
@@ -1843,22 +1898,33 @@ classdef Main < HandlePlus
                     % Draw legend first time
                     
                     if isempty(this.hLegend2D1)
-                    	this.hLegend2D1 = legend(this.hAxes2D1, 'Idet','Izero');
+                    	this.hLegend2D1 = legend(this.hAxes2D1, 'Idet', 'Izero');
+                        % this.hLegend2D1.FontSize = this.dSizeFont;
+                        set(this.hLegend2D1, 'FontSize', this.dSizeFont);
                     end
                     
+                    % Set FontSize at end for some reason it is required to
+                    % do it at the end
+                    set(this.hAxes2D1, 'FontSize', this.dSizeFont);
                     
                     % 3D line plot
                     
-                    cla(this.hAxes2D2)
-                    plot3(...
+                    % cla(this.hAxes2D2)
+                    
+                    % Remove old line series
+                    delete(this.hLines2D2);
+                    
+                    this.hLines2D2 = plot3(...
                         this.hAxes2D2, ...
                         this.d2DResultParam1, this.d2DResultParam2, this.d2DResultIDet, '.-', ...
                         'MarkerSize', this.dSizeMarker ...
                     );
                 
                     xlabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice1.val(), stUnit)); 
-                    ylabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice2.val(), stUnit)); 
-                    zlabel(this.hAxes2D2, sprintf('Idet/Izero'));
+                    ylabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice2.val(), stUnit));  
+                    zlabel(this.hAxes2D2, sprintf('Idet/Izero')); 
+                
+                    set(this.hAxes2D2, 'FontSize', this.dSizeFont);
                     % title(this.hAxes2D2, '2D Results');
 
                 case this.cTypeScript
@@ -1891,7 +1957,10 @@ classdef Main < HandlePlus
                     
                     if isempty(this.hLegend1D)
                     	this.hLegend1D = legend(this.hAxes1D, 'Idet','Izero');
+                        set(this.hLegend1D, 'FontSize', this.dSizeFont);
                     end
+                    
+                     set(this.hAxes1D, 'FontSize', this.dSizeFont);
                     
             end
 
@@ -2316,7 +2385,7 @@ classdef Main < HandlePlus
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'Title', 'Settings', ...
-                'Position', MicUtils.lt2lb([10 10 this.dWidthSettings this.dHeightSettings], this.hFigure) ...
+                'Position', MicUtils.lt2lb([this.dWidthPad this.dWidthPad this.dWidthSettings this.dHeightSettings], this.hFigure) ...
             );
         
             dLeft = 20;
@@ -2394,7 +2463,7 @@ classdef Main < HandlePlus
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
                 'Title', 'Scan', ...
-                'Position', MicUtils.lt2lb([10 this.dHeightSettings + 20 this.dWidthScan this.dHeightScan], this.hFigure) ...
+                'Position', MicUtils.lt2lb([this.dWidthPad this.dHeightSettings + 20 this.dWidthScan this.dHeightScan], this.hFigure) ...
             );
             % 'BackgroundColor', [1 1 1], ...
 
@@ -2435,7 +2504,7 @@ classdef Main < HandlePlus
             
             dLeft = dLeftCol2;
             dWidthPulldown = 120;
-            dWidthUnit = 70;
+            dWidthHioUnit = 70;
             
             this.uipDevice1.build(...
                 this.hPanelScan, ...
@@ -2454,7 +2523,7 @@ classdef Main < HandlePlus
                 this.dHeightEdit ...
             );
         
-            dLeft = dLeftCol3 + dWidthUnit;
+            dLeft = dLeftCol3 + dWidthHioUnit;
             
             this.uieStart1.build(...
                 this.hPanelScan, ...
@@ -2504,7 +2573,7 @@ classdef Main < HandlePlus
                 this.dHeightEdit ...
             );
             
-            dLeft = dLeftCol3 + dWidthUnit;
+            dLeft = dLeftCol3 + dWidthHioUnit;
             
             this.uieStart2.build(...
                 this.hPanelScan, ...
@@ -2637,7 +2706,7 @@ classdef Main < HandlePlus
         function buildPanelResult(this)
             
             % 1D panel and axes
-            dLeft = 10;
+            dLeft = this.dWidthPad;
             dWidthPad = 0;
             dWidthPanel = this.dWidthScan; % this.dWidth - 2 * dWidthPad
             dHeightTop = this.dHeightScan + this.dHeightSettings + 20;
@@ -2684,6 +2753,7 @@ classdef Main < HandlePlus
                 'Position',MicUtils.lt2lb([dWidthPadL, dTop, dWidth, dHeight], this.hPanelResult1D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
+                'FontSize', this.dSizeFont, ...
                 'HandleVisibility','on'...
             ); 
             hold(this.hAxes1D, 'on');
@@ -2700,6 +2770,7 @@ classdef Main < HandlePlus
                 'Position',MicUtils.lt2lb([dWidthPadL,  dTop, dWidth, dHeight], this.hPanelResult2D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
+                'FontSize', this.dSizeFont, ...
                 'HandleVisibility','on'...
             ); 
             hold(this.hAxes2D1, 'on');
@@ -2711,9 +2782,16 @@ classdef Main < HandlePlus
                 'Position',MicUtils.lt2lb([dWidthPadL + dWidth + dWidthPadL2,  dTop, dWidth, dHeight], this.hPanelResult2D),...
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
+                'View', [45 30], ... % Azimuth, Elevation (for 3D view angle)
+                'FontSize', this.dSizeFont, ...
                 'HandleVisibility','on'...
-            ); 
+            );
+        
+            % Setting font size above is not working
+            set(this.hAxes2D2,'FontSize', this.dSizeFont);
             rotate3d(this.hAxes2D2); 
+            
+            drawnow;
             
         end
         
@@ -2760,6 +2838,7 @@ classdef Main < HandlePlus
                 'Title', 'Stages',...
                 'Clipping', 'on',...
                 'BorderWidth', 0, ...
+                'BackgroundColor', this.dColorBgStages, ...
                 'Position', dPos ...
             );
         
@@ -2797,102 +2876,52 @@ classdef Main < HandlePlus
             
         end
         
-        function assignApis(this)
+        function setApis(this)
             
             % Temporarily set all Apis to virtual Apis
             
+            %{
             % HIOs
             ceNames = fieldnames(this.stHIO);
             for n = 1:length(ceNames)
                 cName = sprintf('%s-real', this.stHIO.(ceNames{n}).hio.cName);
                 this.stHIO.(ceNames{n}).hio.setApi(ApivHardwareIOPlus(cName, 0, this.clock));
             end
+            %}
             
-            % Keithley
-
-            this.keithley.setApi(ApivKeithley6482);
+            % Java hardware
+            deviceSins = nus.sins2.Sins2Instruments();
+            deviceMaskX = deviceSins.getMaskX(); 
+            deviceMaskY = deviceSins.getMaskY();
+            deviceMaskZ = deviceSins.getMaskZ();
+            deviceMaskT = deviceSins.getMaskT();
+            deviceDetX = deviceSins.getDetectorX(); 
+            deviceDetT = deviceSins.getDetectorT();
+            deviceFilterY = deviceSins.getFilterStage();
+            deviceKeithley = ApiKeithley6482();
+            
+            % Keithley 
+            this.keithley.setApi(deviceKeithley);
             
             
-        end
-        
-        % This method should only called ONE TIME
-        
-        function setApis(this)
+            % Mono, Filter Y special case for now FIX ME
+            this.stHIO.(this.cFieldMono).hio.setApi(ApivHardwareIOPlus('mono-real', 0, this.clock));
+            % this.stHIO.(this.cFieldFilterY).hio.setApi(ApivHardwareIOPlus('filter-y-real', 0, this.clock));
+                        
+            this.stHIO.(this.cFieldMaskX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskX))
+            this.stHIO.(this.cFieldMaskY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskY))
+            this.stHIO.(this.cFieldMaskZ).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskZ))
+            this.stHIO.(this.cFieldMaskT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT))
+            this.stHIO.(this.cFieldDetX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetX))
+            this.stHIO.(this.cFieldDetT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetT))
+            this.stHIO.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
             
-            this.loadJar();
             
-            sins = cxro.common.device.Sins2Instruments();
-            
-            maskX = sins.getMaskX();
-            maskY = sins.getMaskY();
-            maskZ = sins.getMaskZ();
-            maskT = sins.getMaskT();
-            detX = sins.getDetectorX();
-            detT = sins.getDetectorT();
-            filterY = sins.getFilterStage();
-            
-            % Connect and initialize so they are ready for commands
-            maskX.initialize();
-            maskY.initialize();
-            maskZ.initialize();
-            maskT.initialize();
-            detX.initialize();
-            detT.initialize();
-            filterY.initialize();
-            
-            this.hioMaskX.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskX));
-            this.hioMaskY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskY));
-            this.hioMaskZ.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskZ));
-            this.hioMaskT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(maskT));
-            this.hioDetX.setApi(sins.axis.ApiHardwareIOPlusFromAxis(detX));
-            this.hioDetT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(detT));
-            this.hioFilterY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(filterY));
-            
-            % Mono 
-            % FIX ME
-            % this.hioMono.setApi(ApiHardwareIOPlusFromAxis());
-            
-            this.keithley.setApi(ApiKeithley6482);
             
         end
-        
-        
-        function loadJar(this)
-            
-            
-            if this.jarIsLoaded()
-                return;
-            end
-            
-            % Temporarily set user.dir to the parent directory of the .jar
-            % so it can load dependencies (not sure if this is necessary)
-            
-            cDirJar = fileparts(this.cPathJarSins); 
-            java.lang.System.setProperty('user.dir', cDirJar);
-
-            
-            javaaddpath(this.cPathJarSins);
-            
-        end
-        
-        function l = jarIsLoaded(this)
-           
-            % DPE == Dynamic Path Entries
-            
-            ceDPE = javaclasspath;
-            for k = 1:length(ceDPE)
-                if strcmp(ceDPE{k}, this.cPathJarSins)
-                    l = true;
-                    return;
-                end
-            end
-            
-            l = false;
-            
-        end
-        
+                
       
-        function initHardware(this)
+        function initHardwareUI(this)
                         
                         
             cPathConfigMono = fullfile(...
@@ -2956,16 +2985,20 @@ classdef Main < HandlePlus
             configDetT = ConfigHardwareIOPlus(cPathConfigDetT);
             configFilterY = ConfigHardwareIOPlus(cPathConfigFilterY);
             
+            
+            
             % Mono
             this.hioMono = HardwareIOPlus(...
                 'cName', 'mono', ...
                 'cLabel', 'mono', ...
                 'clock', this.clock, ...
                 'config', configMono, ...
+                'dColorBg', this.dColorBgStages, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'fhValidateDest', @this.validateDest ... 
             );
             
@@ -2977,12 +3010,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configMaskX, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ... 
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             ); 
             
@@ -2994,12 +3029,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configMaskY, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ... 
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             );
             
@@ -3011,12 +3048,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configMaskZ, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ...
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             );
             
@@ -3028,12 +3067,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configMaskT, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ... 
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             );
             
@@ -3045,12 +3086,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configDetX, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ... 
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             );
             
@@ -3062,12 +3105,14 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configDetT, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ... 
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
+                'lShowRange', true, ...
                 'lShowRel', false ...
             );
             
@@ -3079,16 +3124,16 @@ classdef Main < HandlePlus
                 'clock', this.clock, ...
                 'config', configFilterY, ...
                 'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
                 'fhValidateDest', @this.validateDest, ...
                 'lShowInitButton', true, ...
-                'lShowInitState', true, ...
+                'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowZero', false, ...
                 'lShowRel', false ...
             ); 
-            
-            
+
             this.keithley = Keithley6482( ...
                 'cName', 'keithley 6482', ...
                 'clock', this.clock, ...
@@ -3214,6 +3259,24 @@ classdef Main < HandlePlus
             this.uieSettle.setMin(0);
         end
         
+        
+        function initDevices(this)
+            
+            return;
+            
+            this.msg('initDevices() connecting to hardware ...');
+            this.deviceSins = nus.sins2.Sins2Instruments();
+            this.deviceMaskX = this.deviceSins.getMaskX(); 
+            this.deviceMaskY = this.deviceSins.getMaskY();
+            this.deviceMaskZ = this.deviceSins.getMaskZ();
+            this.deviceMaskT = this.deviceSins.getMaskT();
+            this.deviceDetX = this.deviceSins.getDetectorX(); 
+            this.deviceDetT = this.deviceSins.getDetectorT();
+            this.deviceFilterY = this.deviceSins.getFilterStage();
+            this.deviceKeithley = ApiKeithley6482();
+            
+        end
+        
         function init(this)
             
             [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));            
@@ -3222,14 +3285,6 @@ classdef Main < HandlePlus
             this.cDirRecipe  = fullfile(this.cDirApp, 'scans');
             this.cDirResult = fullfile(this.cDirApp, 'scans');
             
-            % Add files to Java class path
-            this.cPathJarSins = fullfile(...
-                this.cDirApp, ...
-                'jar', ...
-                'jdk7', ...
-                'Sins2Instruments.jar' ...
-            ); 
-        
             this.initSettings();
                        
             this.cDirSave = fullfile( ...
@@ -3238,9 +3293,11 @@ classdef Main < HandlePlus
                 'sslsr' ...
             ); 
         
-        
-            this.initHardware(); 
-            this.assignApis();
+            
+            this.initHardwareUI();
+            
+            this.initDevices();
+            this.setApis();
                         
             this.uibLoadLock = UIButton('Sample -> LL');
             addlistener(this.uibLoadLock, 'ePress', @this.onLoadLockPress);

@@ -7,12 +7,12 @@ classdef SinsTest < HandlePlus
 	properties
         
         clock
-        sins
         hioFilterY
         hioMaskT
         
-        filterY
-        maskT
+        deviceSins
+        deviceFilterY
+        deviceMaskT
                 
     end
     
@@ -51,6 +51,26 @@ classdef SinsTest < HandlePlus
             % App root
             this.cDirApp = fullfile(this.cDirThis, '..', '..', '..', '..');
             
+            this.initDevices();
+            this.initHardwareUI();
+            this.setApis();
+            
+        end
+        
+        function initDevices(this)
+            
+            return;
+            this.deviceSins = nus.sins2.Sins2Instruments();
+            % this.deviceFilterY = this.deviceSins.getFilterStage();
+            this.deviceMaskT = this.deviceSins.getMaskT();
+            
+            
+        end
+        
+        
+        
+        function initHardwareUI(this)
+            
             this.cPathConfigFilterY = fullfile(this.cDirApp, 'config', 'hiop', 'filterY.json');
             this.configFilterY = ConfigHardwareIOPlus(this.cPathConfigFilterY);
             this.hioFilterY = HardwareIOPlus(...
@@ -82,17 +102,17 @@ classdef SinsTest < HandlePlus
                 'cConversion' , 'f', ... % fixed point notaion // exponential notaion
                 'fhValidateDest', @this.validateDest ...
             );
-            %  this.hio = HardwareIOPlus();
-       
-            % For development, set real Api to virtual
-            % cName = sprintf('%s-real', this.hio.cName);
+        
+        end
+        
+        function setApis(this)
+            % this.hioFilterY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(this.deviceFilterY));
             
-            this.sins = nus.sins2.Sins2Instruments();
-            this.filterY = this.sins.getFilterStage();
-            this.maskT = this.sins.getMaskT();
-
-            this.hioFilterY.setApi(sins.axis.ApiHardwareIOPlusFromAxis(this.filterY));
-            this.hioMaskT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(this.maskT));
+            deviceSins = nus.sins2.Sins2Instruments();
+            % this.deviceFilterY = this.deviceSins.getFilterStage();
+            deviceMaskT = deviceSins.getMaskT();
+            
+            this.hioMaskT.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT));
         end
         
         function l = validateDest(this)
@@ -115,12 +135,24 @@ classdef SinsTest < HandlePlus
             this.hioMaskT.build(this.hFigure, dLeft, dTop);
         end
         
-        function delete(this)
-            this.msg('delete', 5);
+        function deleteDevices(this)
+            return;
+            this.msg('deleteDevices()');
+            % this.deviceFilterY.destroy();
+            this.deviceMaskT.destroy();
+        end
+        
+        function deleteHardwareUI(this)
+            this.msg('deleteHardwareUI');
             delete(this.hioFilterY);
             delete(this.hioMaskT)
-            % delete(this.axis);
-            % delete(this.sins);
+        end
+        
+        function delete(this)
+            this.msg('delete', 5);
+            
+            this.deleteHardwareUI();
+            this.deleteDevices();
             delete(this.clock);
         end
                

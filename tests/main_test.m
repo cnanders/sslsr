@@ -2,7 +2,10 @@
 [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));
 
 % App root
-cDirApp = fullfile(cDirThis, '..', '..', '..', '..');
+cDirApp = fullfile(cDirThis, '..');
+
+% Add tests
+addpath(genpath(fullfile(cDirApp, 'tests')));
 
 % Add mic
 addpath(genpath(fullfile(cDirApp, 'lib', 'mic')));
@@ -15,17 +18,13 @@ cPathJar = fullfile(...
     cDirApp, ...
     'jar', ...
     'jdk7', ...
-    'test', ...
     'Sins2Instruments.jar' ...
 );
 javaaddpath(cPathJar);
 
 purge;
 
-test = sins.sins.SinsTest();
-test.build();
-
-
-
+main = sins.main.Main();
+main.build();
 
 
