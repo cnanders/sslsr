@@ -14,7 +14,11 @@ classdef Main < HandlePlus
         
         % Name of devices in the pulldown
         
-        cDeviceMono = 'mono';
+        dHeightButton = 24;
+        dHeightText = 24;
+        
+        cDeviceMono = 'wav';
+        cDeviceGrating = 'grating';
         cDeviceMaskX = 'mask x';
         cDeviceMaskY = 'mask y';
         cDeviceMaskZ = 'mask z';
@@ -33,7 +37,8 @@ classdef Main < HandlePlus
         % The name of field/prop in the recipe for each controlled device
         % and in the HIO struct
         
-        cFieldMono = 'mono';
+        cFieldMono = 'wav';
+        cFieldGrating = 'grating'
         cFieldMaskX = 'maskX';
         cFieldMaskY = 'maskY';
         cFieldMaskZ = 'maskZ';
@@ -45,10 +50,12 @@ classdef Main < HandlePlus
         
         % {double 1x3} RGB triplet. Each value in range [0, 1]
         dColorBgStages = [.94 .94 .94]; % MATLAB default
+        dColorBgFigure = [200 200 200]./255;
         
-        dWidth = 1480
+        dWidth = 1500
         dHeight = 450 % 650;
         
+        dWidthPanelBorder = 0;
         dWidthPad = 10;
         dWidthBtn = 24
         
@@ -68,15 +75,23 @@ classdef Main < HandlePlus
         dWidthDir = 350
         dWidthEditSep = 5
         
-        dWidthPanelStages = 550
-        dHeightPanelStages = 265
+        dWidthPanelStages = 625
+        dHeightPanelStages = 250
         
-        dWidthPanelPicoammeter = 550;
-        dHeightPanelPicoammeter = 80; % 350;
+        dWidthPanelMono = 670;
+        dHeightPanelMono = 70;
         
+        dWidthPanelPicoammeter = 300;
+        dHeightPanelPicoammeter = 70; % 350;
+        
+        dHeightHio = 25;
+        dHeightHioLabels = 17;
         dWidthHioName = 50;
         dWidthHioVal = 50;
         dWidthHioUnit = 60;
+        dWidthHioStores = 90;
+        dWidthHioRange = 120;
+        lHioAskOnApiClick = false
         
         dWidthMeta = 200;
         dWidthSettle = 100;
@@ -124,6 +139,9 @@ classdef Main < HandlePlus
         uieOperator
         uieMeta
         uieSettle
+        
+        stStartStopStepsStore1
+        stStartStopStepsStore2
     
     end
     
@@ -148,6 +166,7 @@ classdef Main < HandlePlus
         % iDet
         
         hioMono
+        hioGrating
         hioMaskX
         hioMaskY
         hioMaskZ
@@ -280,6 +299,7 @@ classdef Main < HandlePlus
         
         hPanelSettings
         hPanelStages
+        hPanelMono
         hPanelScan
         hPanelPicoammeter
         
@@ -669,11 +689,7 @@ classdef Main < HandlePlus
         function build(this)
                        
             % Figure
-            
-            dColorBg = [1 1 1];
-            %                     'Color', dColorBg, ...
-
-            
+          
             if ishghandle(this.hFigure)
                 % Bring to front
                 figure(this.hFigure);
@@ -684,7 +700,8 @@ classdef Main < HandlePlus
                 this.hFigure = figure( ...
                     'NumberTitle', 'off', ...
                     'MenuBar', 'none', ...
-                    'Name', 'NUS Control', ...
+                    'Name', 'SINS Control', ...
+                    'Color', this.dColorBgFigure, ...
                     'CloseRequestFcn', @this.onClose, ...
                     'Position', [ ...
                         (dScreenSize(3) - this.dWidth)/2 ...
@@ -707,7 +724,7 @@ classdef Main < HandlePlus
             end
             
             
-            
+            this.buildPanelMono();
             this.buildPanelStages();  
             this.buildPanelPicoammeter();
             this.buildPanelSettings();
@@ -846,6 +863,50 @@ classdef Main < HandlePlus
             % Keithley
             this.keithley.turnOff();
         end
+        
+        % Convert a relative directory path into a canonical path
+        % i.e., C:\A\B\..\C becomes C:\A\C.  Uses java io interface
+        
+        function c = path2canonical(this, cPath)
+           jFile = java.io.File(cPath);
+           c = char(jFile.getCanonicalPath);
+        end
+        
+        % @param {cell of struct 1xm} ce - data, i.e.,
+        % ce{1}.car = 'ferrari'
+        % ce{2}.car = 'tesla'
+        % ce{1}.location = 'San Francisco'
+        % ce{2}.location = 'Los Angeles'
+        % @return {struct array 1xm} st
+        % st(1).car = 'ferrari'
+        % st(2).car = 'tesla'
+        
+        function st = cellOfSt2structAr(this, ce)
+            
+            % {double 1xm} - list of indexes of ce that are not empty
+            % https://www.mathworks.com/matlabcentral/answers/42283-index-non-empty-cells-in-cell-array
+            dIndex = find(~cellfun(@isempty, ce));
+            
+            % {cell of struct 1xm} - subset of ce that contains non-empty
+            % structures
+            ceSub = ce(dIndex);
+            
+            % Initialize 1 x length(ceSub) list of structures.  Each structure
+            % in the list is a clone of ce{1} so it has correct properties.
+           
+            st = repmat(ceSub{1}, length(ceSub), 1);
+            
+            % Overwrite each element of st with the corresponding
+            % element of the ceSub
+            
+            for n = 1:length(ceSub)
+                if isempty(ceSub{n})
+                    continue
+                end
+                st(n) = ceSub{n};
+            end
+            
+        end
                
     end
     
@@ -858,6 +919,7 @@ classdef Main < HandlePlus
         
         function onSwapPress(this, src,evt)
             
+            this.msg('onSwapPress()');
             this.removeDevice1Listeners();
             this.removeDevice2Listeners();
         
@@ -937,7 +999,9 @@ classdef Main < HandlePlus
         end
         
         function liveStart(this)
-                        
+                 
+            this.msg('liveStart()');
+            
             % Start a new scan
             this.lIsScanning = true;
             this.resetPlot();
@@ -1123,7 +1187,7 @@ classdef Main < HandlePlus
                return; % User clicked "cancel"
             end
             
-            this.cDirResult = cName;
+            this.cDirResult = this.path2canonical(cName);
             this.updateDirLabel();            
         end
         
@@ -1132,7 +1196,7 @@ classdef Main < HandlePlus
                 'The directory where scan recipe/result files are saved: %s', ...
                 this.cDirResult ...
             ));
-            this.uitxDir.cVal = this.truncate(this.cDirResult, 60, true);
+            this.uitxDir.cVal = this.truncate(this.cDirResult, 55, true);
         end
         
         
@@ -1152,6 +1216,14 @@ classdef Main < HandlePlus
                     this.uitPlay.setTooltip(this.cTooltipScanResume);
                     this.scan.pause();
             end
+        end
+        
+        function onHioMonoTurnOn(this, src, evt)
+            this.hioGrating.turnOn();
+        end
+        
+        function onHioMonoTurnOff(this, src, evt)
+            this.hioGrating.turnOff();
         end
         
         function onCancelConfirm(this, src, evt) 
@@ -1347,7 +1419,7 @@ classdef Main < HandlePlus
             this.uitxStatus.cVal = 'Writing recipe ...';
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
-            cName = sprintf('Recipe-%s.json', cTimestamp);
+            cName = sprintf('%s-Recipe.json', cTimestamp);
             
             this.checkDir(this.cDirRecipe);
             
@@ -1365,25 +1437,33 @@ classdef Main < HandlePlus
             
         end
         
-        function saveScanResults(this, stUnit, lAborted)
-        %SAVESCANRESULTS
-        %   @param {struct} stUnit - the unit definitions that were used
-        %       during the scan
-        %   @param {logical} [lAborted = false] - true if the scan was aborted and
-        %       this is called from onStateScanAbort()
+        % @param {struct} stUnit - the unit definitions that were used
+        % during the scan
+        % @param {logical} [lAborted = false] - true if the scan was aborted and
+        % this is called from onStateScanAbort()
         
+        function saveScanResults(this, stUnit, lAborted)
+            this.msg('saveScanResults()');
+            
             if nargin <3
                 lAborted = false;
             end
-            
-            this.uitxStatus.cVal = 'Saving results ...';
+            this.saveScanResultsJson(stUnit, lAborted);
+            this.saveScanResultsCsv(stUnit, lAborted);
+        end
+        
+        function saveScanResultsJson(this, stUnit, lAborted)
+       
+            this.msg('saveScanResultsJson()');
+             
+            this.uitxStatus.cVal = 'Saving JSON results ...';
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
             
             switch lAborted
                 case true
-                    cName = sprintf('Result-%s-Aborted.json', cTimestamp);
+                    cName = sprintf('%s-Result-Aborted.json', cTimestamp);
                 case false
-                    cName = sprintf('Result-%s.json', cTimestamp);
+                    cName = sprintf('%s-Result.json', cTimestamp);
             end
             
             cPath = fullfile(...
@@ -1404,7 +1484,33 @@ classdef Main < HandlePlus
             stOptions.FileName = cPath;
             stOptions.Compact = 0;
             
+            
             savejson('', stResult, stOptions);     
+
+        end
+        
+        function saveScanResultsCsv(this, stUnit, lAborted)
+        
+            this.msg('saveScanResultsCsv()');
+            
+            this.uitxStatus.cVal = 'Saving CSV results ...';
+            cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
+            
+            switch lAborted
+                case true
+                    cName = sprintf('%s-Result-Aborted.csv', cTimestamp);
+                case false
+                    cName = sprintf('%s-Result.csv', cTimestamp);
+            end
+            
+            cPath = fullfile(...
+                this.cDirResult, ...
+                cName ...
+            );
+                    
+            stResult = this.cellOfSt2structAr(this.ceValues);
+            tableResult = struct2table(stResult);
+            writetable(tableResult, cPath);
 
         end
         
@@ -1633,6 +1739,7 @@ classdef Main < HandlePlus
         
         function startNewScan(this)
             
+            this.msg('startNewScan()');
             
             % Start a new scan
             this.lIsScanning = true;
@@ -1822,6 +1929,8 @@ classdef Main < HandlePlus
                 ~ishandle(this.hAxes2D1) || ...
                 isempty(this.hAxes2D2) || ...
                 ~ishandle(this.hAxes2D2)
+                
+                this.msg('updatePlot returning due to empty Axes handle');
                 return;
             end
             
@@ -1829,6 +1938,8 @@ classdef Main < HandlePlus
             switch (this.uipType.val())
                 case this.cTypeOneDevice
                     
+                    this.msg(sprintf('updatePlot() case: %s', this.cTypeOneDevice));
+
                     % Plot IDet, IZero vs. controlled device value
 
                     % Delete old line series
@@ -1865,6 +1976,7 @@ classdef Main < HandlePlus
                                 
                 case this.cTypeTwoDevice
                     
+                    this.msg(sprintf('updatePlot() case: %s', this.cTypeTwoDevice));
                     % Plot of current 2nd dimension being scanned
                     
                     % Remove old line series
@@ -1927,8 +2039,14 @@ classdef Main < HandlePlus
                     set(this.hAxes2D2, 'FontSize', this.dSizeFont);
                     % title(this.hAxes2D2, '2D Results');
 
-                case this.cTypeScript
-                case this.cTypeLive
+                case {this.cTypeScript this.cTypeLive}
+                    
+                    cMsg = sprintf(...
+                        'updatePlot() case: {%s %s}', ...
+                        this.cTypeScript, ...
+                        this.cTypeLive ...
+                    );
+                    this.msg(cMsg);
                     
                     % Plot IDet, IZero vs. Trial #
                     
@@ -1960,7 +2078,7 @@ classdef Main < HandlePlus
                         set(this.hLegend1D, 'FontSize', this.dSizeFont);
                     end
                     
-                     set(this.hAxes1D, 'FontSize', this.dSizeFont);
+                    set(this.hAxes1D, 'FontSize', this.dSizeFont);
                     
             end
 
@@ -2079,35 +2197,80 @@ classdef Main < HandlePlus
             
         end
         
-        function onDevice1Change(this, src, evt)            
+        function onDevice1Change(this, src, evt)
+            this.msg('onDevice1Change()');
             this.updateUnit1();
-            this.resetPlot();
+            this.updateStartStopSteps1();
+            % No longer necessary since updateStartStopSteps1 triggers
+            % onSteps1Change() which calls resetPlot().
+            % this.resetPlot();
         end
         
         
         
         function onDevice2Change(this, src, evt)
+            this.msg('onDevice2Change()');
             this.updateUnit2();
-            this.resetPlot();
+            this.updateStartStopSteps2();
+            % No longer necessary since updateStartStopSteps1 triggers
+            % onSteps2Change() which calls resetPlot().
+            % this.resetPlot();
         end
         
         function onStart1Change(this, src, evt)
+            this.msg('onStart1Change()');
+            cField = this.deviceField(this.uipDevice1.val());
+            this.stStartStopStepsStore1.(cField).start = src.val();
             this.resetPlot();
         end
         function onStop1Change(this, src, evt)
+            this.msg('onStop1Change()');
+            cField = this.deviceField(this.uipDevice1.val());
+            this.stStartStopStepsStore1.(cField).stop = src.val();
             this.resetPlot();
         end
         function onSteps1Change(this, src, evt)
+            this.msg('onSteps1Change()');
+            cField = this.deviceField(this.uipDevice1.val());
+            this.stStartStopStepsStore1.(cField).steps = src.val();
             this.resetPlot();
         end
         function onStart2Change(this, src, evt)
+            this.msg('onStart2Change()');
+            cField = this.deviceField(this.uipDevice2.val());
+            this.stStartStopStepsStore2.(cField).start = src.val();
             this.resetPlot();
         end
         function onStop2Change(this, src, evt)
+            this.msg('onStop2Change()');
+            cField = this.deviceField(this.uipDevice2.val());
+            this.stStartStopStepsStore2.(cField).stop = src.val();
             this.resetPlot();
         end
         function onSteps2Change(this, src, evt)
+            this.msg('onSteps2Change()');
+            cField = this.deviceField(this.uipDevice2.val());
+            this.stStartStopStepsStore2.(cField).steps = src.val();
             this.resetPlot();
+        end
+                        
+        % Update start1, stop1, steps1 to last used values for the selected
+        % device
+        function updateStartStopSteps1(this)
+            this.msg('updateStartStopSteps1()');
+            cField = this.deviceField(this.uipDevice1.val());
+            this.uieStart1.setValWithoutNotify(this.stStartStopStepsStore1.(cField).start);
+            this.uieStop1.setValWithoutNotify(this.stStartStopStepsStore1.(cField).stop);
+            this.uieSteps1.setVal(this.stStartStopStepsStore1.(cField).steps);
+        end
+        % Update start2, stop2, steps2 to last used values  for the selected
+        % device
+        function updateStartStopSteps2(this)
+            this.msg('updateStartStopSteps2()');
+            cField = this.deviceField(this.uipDevice2.val());
+            this.uieStart2.setValWithoutNotify(this.stStartStopStepsStore2.(cField).start);
+            this.uieStop2.setValWithoutNotify(this.stStartStopStepsStore2.(cField).stop);
+            this.uieSteps2.setVal(this.stStartStopStepsStore2.(cField).steps);
         end
         
         function updateUnit1(this)
@@ -2153,7 +2316,8 @@ classdef Main < HandlePlus
         
         function [stRecipe, lError] = buildRecipeFromFile(this, cPath)
            
-            this.msg('buildRecipeFromFile');
+            cMsg = sprintf('buildRecipeFromFile: %s', cPath);
+            this.msg(cMsg);
             
             
             lError = false;
@@ -2195,9 +2359,7 @@ classdef Main < HandlePlus
                 lError = true;
                 return;
             end
-            
-            
-            
+
         end
         
         function resetPlot(this)
@@ -2207,6 +2369,7 @@ classdef Main < HandlePlus
             switch this.uipType.val()
                 case this.cTypeOneDevice
                     
+                    this.msg(sprintf('resetPlot() case: %s', this.cTypeOneDevice));
                     dValues = linspace(...
                         this.uieStart1.val(), ...
                         this.uieStop1.val(), ...
@@ -2218,6 +2381,8 @@ classdef Main < HandlePlus
                     
                 case this.cTypeTwoDevice
                     
+                     this.msg(sprintf('resetPlot() case: %s', this.cTypeTwoDevice));
+                     
                     % 1st dimension values            
                     dValues = linspace(...
                         this.uieStart1.val(), ...
@@ -2249,6 +2414,7 @@ classdef Main < HandlePlus
 
                 case this.cTypeScript
                     
+                     this.msg(sprintf('resetPlot() case: %s', this.cTypeScript));
                     % Here we can't rely on the UI elements to give us
                     % information.  Need to load the recipe
                     
@@ -2267,6 +2433,8 @@ classdef Main < HandlePlus
                     end
                     
                 case this.cTypeLive
+                    
+                    this.msg(sprintf('resetPlot() case: %s', this.cTypeLive));
                     this.d1DResultParam = [];
                     this.d1DResultIDet = [];    
                     this.d1DResultIZero = [];
@@ -2274,6 +2442,7 @@ classdef Main < HandlePlus
                        
             end
             
+            this.msg('resetPlot() calling updatePlot()');
             this.updatePlot(this.getSystemUnits());
 
         end
@@ -2295,17 +2464,16 @@ classdef Main < HandlePlus
         
         function onChooseRecipePress(this, src, evt)
            
-            
-            
-            
-            
+            this.msg('onChooseRecipePress()');
+                        
             [cName, cPath] = uigetfile(...
                 '.json',...
                 'Please choose a script', ...
-                fullfile(pwd, this.cDirRecipe) ...
+                this.cDirRecipe ...
             );
         
             if isequal(cName,0)
+               this.msg('onChooseRecipePress() user clicked "cancel".');
                return; % User clicked "cancel"
             end
             
@@ -2330,7 +2498,7 @@ classdef Main < HandlePlus
             % This is the only place in the code that uitxRecipe is set
             
             this.uitxRecipe.setTooltip(this.cPathRecipe);
-            this.uitxRecipe.cVal = this.truncate(this.cPathRecipe, 35, true);
+            this.uitxRecipe.cVal = this.truncate(this.cPathRecipe, 40, true);
             
             % Want to show the open button if 
             this.uibOpenRecipe.show();
@@ -2383,7 +2551,7 @@ classdef Main < HandlePlus
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
                 'Clipping', 'on',...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'Title', 'Settings', ...
                 'Position', MicUtils.lt2lb([this.dWidthPad this.dWidthPad this.dWidthSettings this.dHeightSettings], this.hFigure) ...
             );
@@ -2395,24 +2563,24 @@ classdef Main < HandlePlus
                 this.hPanelSettings, ...
                 dLeft, ... % left
                 dTop, ... % top
-                100, ... % width
+                20, ... % width
                 20 ... % height
             );
         
             this.uitxDir.build(...
                 this.hPanelSettings, ...
-                dLeft, ... % left
-                dTop + 20, ... % top
+                dLeft + 20, ... % left
+                dTop, ... % top
                 this.dWidthDir, ... % width
                 20 ... % height
             );
         
             this.uibChooseDir.build(...
                 this.hPanelSettings, ...
-                dLeft + 50, ...
-                dTop, ...
-                45, ...
-                14 ...
+                dLeft, ...
+                dTop + 14, ...
+                55, ...
+                this.dHeightButton ...
             );
             dLeft = dLeft + this.dWidthDir;
             
@@ -2461,7 +2629,7 @@ classdef Main < HandlePlus
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
                 'Clipping', 'on',...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'Title', 'Scan', ...
                 'Position', MicUtils.lt2lb([this.dWidthPad this.dHeightSettings + 20 this.dWidthScan this.dHeightScan], this.hFigure) ...
             );
@@ -2599,22 +2767,22 @@ classdef Main < HandlePlus
         
             % Choose File
             
-            dTop = 30;
+            dTop = 35;
             
             this.uibChooseRecipe.build(...
                 this.hPanelScan, ...
                 dLeftCol2, ...
                 dTop, ...
                 100, ...
-                30 ...
+                this.dHeightButton ...
             );
         
             this.uitxRecipe.build(...
                 this.hPanelScan, ...
                 dLeftCol2 + 110, ...
-                dTop + 8, ...
-                200, ...
-                30 ...
+                dTop + (this.dHeightButton - this.dHeightText)/2, ...
+                250, ...
+                this.dHeightText ...
             );
         
             this.uibOpenRecipe.build(...
@@ -2622,7 +2790,7 @@ classdef Main < HandlePlus
                 dLeftCol2, ...
                 dTop + 30, ...
                 100, ...
-                30 ...
+                this.dHeightButton ...
             );
         
             this.uibChooseRecipe.hide();
@@ -2639,14 +2807,14 @@ classdef Main < HandlePlus
                 dLeft, ...
                 dTop, ...
                 this.dWidthPlay, ...
-                30 ...
+                this.dHeightButton ...
             );
         
             this.uibCancel.build(this.hPanelScan, ...
                 dLeft, ...
                 dTop + 30, ...
                 this.dWidthPlay, ...
-                30 ...
+                this.dHeightButton ...
             );
             this.uibCancel.hide();
             
@@ -2722,7 +2890,7 @@ classdef Main < HandlePlus
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
                 'Clipping', 'on',...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'BackgroundColor', dColorBg, ...
                 'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
             );
@@ -2735,7 +2903,7 @@ classdef Main < HandlePlus
                 'Units', 'pixels',...
                 'Clipping', 'on',...
                 'Visible', 'off', ...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'BackgroundColor', dColorBg, ...
                 'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightResult], this.hFigure) ...
             );
@@ -2800,7 +2968,7 @@ classdef Main < HandlePlus
             dPos = MicUtils.lt2lb(...
                 [...
                     this.dWidthScan + 20 ...
-                    this.dHeightPanelStages  + 20 ...
+                    10 + this.dHeightPanelMono + 10 + this.dHeightPanelStages  + 10 ...
                     this.dWidthPanelPicoammeter ...
                     this.dHeightPanelPicoammeter ...
                 ], ...
@@ -2810,13 +2978,51 @@ classdef Main < HandlePlus
             this.hPanelPicoammeter =  uipanel(...
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
-                'Title', 'Keithley 6482 Dual-Channel Picoammeter',...
+                'Title', 'Keithley 6482',...
                 'Clipping', 'on',...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'Position', dPos ...
             );
             
             this.keithley.build(this.hPanelPicoammeter, 0, 10);
+            
+        end
+        
+        function buildPanelMono(this)
+            
+            dPos = MicUtils.lt2lb(...
+                [...
+                    this.dWidthScan + 20  ... % l
+                    10 ... % t
+                    this.dWidthPanelMono ... % w
+                    this.dHeightPanelMono ... % h
+                ], ...
+                this.hFigure ...
+            );
+        
+            this.hPanelMono =  uipanel(...
+                'Parent', this.hFigure,...
+                'Units', 'pixels',...
+                'Title', 'Monochromator',...
+                'Clipping', 'on',...
+                'BorderWidth', this.dWidthPanelBorder, ...
+                'BackgroundColor', this.dColorBgStages, ...
+                'Position', dPos ...
+            );
+        
+            dLeft = 10;
+            dTop = 20 + this.dHeightHioLabels;
+            dVSep = 25;
+            
+            dN = 0;
+            this.hioMono.build(this.hPanelMono, dLeft, dTop + dN * this.dHeightHio - this.dHeightHioLabels);
+            
+            % Hack to place over the "stores" location of hioMono
+            this.hioGrating.build(this.hPanelMono, 340, dTop + dN * this.dHeightHio);
+            %{
+            dN = dN + 1;
+            this.hioGrating.build(this.hPanelMono, dLeft, dTop + dN * this.dHeightHio);
+            %}
             
         end
         
@@ -2825,7 +3031,7 @@ classdef Main < HandlePlus
             dPos = MicUtils.lt2lb(...
                 [...
                     this.dWidthScan + 20  ... % l
-                    10 ... % t
+                    10 + this.dHeightPanelMono + 10 ... % t
                     this.dWidthPanelStages ... % w
                     this.dHeightPanelStages ... % h
                 ], ...
@@ -2835,48 +3041,50 @@ classdef Main < HandlePlus
             this.hPanelStages =  uipanel(...
                 'Parent', this.hFigure,...
                 'Units', 'pixels',...
-                'Title', 'Stages',...
+                'Title', 'Reflectometer',...
                 'Clipping', 'on',...
-                'BorderWidth', 0, ...
+                'BorderWidth', this.dWidthPanelBorder, ...
                 'BackgroundColor', this.dColorBgStages, ...
                 'Position', dPos ...
             );
         
-           
-            
-            
-            
-            % The Toggle all button
-            
             dLeft = 10;
-            dTop = 15;
-           
+            dTop = 20 + this.dHeightHioLabels;
+            
+            dN = 0;
+            this.hioMaskX.build(this.hPanelStages, dLeft, dTop - this.dHeightHioLabels + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioMaskY.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioMaskZ.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioMaskT.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioDetX.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioDetT.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            this.hioFilterY.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
+            dN = dN + 1;
+            
+            this.uibLoadLock.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio + 5, 120, this.dHeightButton) 
+            
+            
+            %{
             this.uitStageApi.build(this.hPanelStages, dLeft, dTop, 120, this.dWidthBtn);
             dLeft = dLeft + this.dWidthBtn + 5; 
+            %}
             
-            this.uibLoadLock.build(this.hPanelStages, 150, dTop, 120, 24) 
             
             % this.uitxLabelStagesApi.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
             % dLeft = dLeft + 50;
             
-            dTop = 60;
-            dLeft = 0;
-            dVSep = 25;
-            dLeft = 10;
-            
-            this.hioMono.build(this.hPanelStages, dLeft, dTop - 17);
-            this.hioMaskX.build(this.hPanelStages, dLeft, dTop + dVSep); 
-            this.hioMaskY.build(this.hPanelStages, dLeft, dTop + 2 * dVSep); 
-            this.hioMaskZ.build(this.hPanelStages, dLeft, dTop + 3 * dVSep);
-            this.hioMaskT.build(this.hPanelStages, dLeft, dTop + 4 * dVSep);
-            this.hioDetX.build(this.hPanelStages, dLeft, dTop + 5 * dVSep); 
-            this.hioDetT.build(this.hPanelStages, dLeft, dTop + 6 * dVSep); 
-            this.hioFilterY.build(this.hPanelStages, dLeft, dTop + 7 * dVSep); 
-            
-            
         end
         
         function setApis(this)
+            
+            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            return
             
             % Temporarily set all Apis to virtual Apis
             
@@ -2905,9 +3113,11 @@ classdef Main < HandlePlus
             
             
             % Mono, Filter Y special case for now FIX ME
-            this.stHIO.(this.cFieldMono).hio.setApi(ApivHardwareIOPlus('mono-real', 0, this.clock));
+            % this.stHIO.(this.cFieldMono).hio.setApi(ApivHardwareIOPlus('mono-real', 0, this.clock));
             % this.stHIO.(this.cFieldFilterY).hio.setApi(ApivHardwareIOPlus('filter-y-real', 0, this.clock));
-                        
+              
+            this.stHIO.(this.cFieldMono).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('wav'));
+            this.stHIO.(this.cFieldGrating).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('grating'));
             this.stHIO.(this.cFieldMaskX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskX))
             this.stHIO.(this.cFieldMaskY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskY))
             this.stHIO.(this.cFieldMaskZ).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskZ))
@@ -2919,17 +3129,122 @@ classdef Main < HandlePlus
             
             
         end
-                
-      
-        function initHardwareUI(this)
-                        
-                        
+          
+        function initConnectAll(this)
+            
+            st1 = struct();
+            st1.lAsk        = true;
+            st1.cTitle      = 'Switch?';
+            st1.cQuestion   = 'Do you want to connect all hardware to the real Api?';
+            st1.cAnswer1    = 'Yes.';
+            st1.cAnswer2    = 'No not yet.';
+            st1.cDefault    = st1.cAnswer2;
+
+            st2 = struct();
+            st2.lAsk        = true;
+            st2.cTitle      = 'Switch?';
+            st2.cQuestion   = 'Do you want to disconnect all hardware (go into virtual mode)?';
+            st2.cAnswer1    = 'Yes of course!';
+            st2.cAnswer2    = 'No not yet.';
+            st2.cDefault    = st2.cAnswer2;
+
+            this.uitStageApi = UIToggle( ...
+                'Connect', ...   % (off) not active
+                'Disconnect', ...  % (on) active
+                false, ...
+                [], ...
+                [], ...
+                st1, ...
+                st2 ...
+            );
+        
+            this.uitStageApi.setTooltip(this.cTooltipConnect);
+            addlistener(this.uitStageApi, 'eChange', @this.onStageApiChange); 
+            
+        end
+        
+        
+        function initHardwareUIMono(this)
             cPathConfigMono = fullfile(...
                 this.cDirApp, ...
                 'config', ...
                 'hiop', ...
                 'mono.json' ...
             );
+        
+            cPathConfigGrating = fullfile(...
+                this.cDirApp, ...
+                'config', ...
+                'hiop', ...
+                'grating.json' ...
+            );
+        
+            configMono = ConfigHardwareIOPlus(cPathConfigMono);
+            configGrating = ConfigHardwareIOPlus(cPathConfigGrating);
+            
+            
+            % Mono
+            this.hioMono = HardwareIOPlus(...
+                'cName', 'wav', ...
+                'cLabel', 'wav', ...
+                'clock', this.clock, ...
+                'config', configMono, ...
+                'dColorBg', this.dColorBgStages, ...
+                'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
+                'dWidthVal', this.dWidthHioVal, ...
+                'dWidthRange', this.dWidthHioRange, ...
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthPadName', 29, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
+                'lShowInitButton', false, ...
+                'lShowInitState', false, ...
+                'lShowStores', true, ...
+                'lShowRange', true, ...
+                'cLabelStores', 'Grating lines/mm', ...
+                'fhValidateDest', @this.validateDest ... 
+            );
+            addlistener(this.hioMono, 'eTurnOn', @this.onHioMonoTurnOn);
+            addlistener(this.hioMono, 'eTurnOff', @this.onHioMonoTurnOff);
+            % Mono
+            
+             % 'dWidthPadStores', 177,  ...
+                % 'dWidthPadUnit', 105, ...
+                % 'dWidthPadName', 29, ...
+            dWidthVal = 30;
+            dWidthPadStores = 5;
+            this.hioGrating = HardwareIOPlus(...
+                'cName', 'grating', ...
+                'cLabel', 'grating', ...
+                'clock', this.clock, ...
+                'config', configGrating, ...
+                'dColorBg', this.dColorBgStages, ...
+                'dWidthName', this.dWidthHioName, ...
+                'dWidthUnit', this.dWidthHioUnit, ...
+                'dWidthVal', dWidthVal, ...
+                'dWidthPadStores', dWidthPadStores, ...
+                'dWidthStores', this.dWidthHioStores - dWidthVal - dWidthPadStores, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
+                'lShowApi', false, ...
+                'lShowName', false, ...
+                'lShowLabels', false, ...
+                'lShowDest', false, ...
+                'lShowJog', false, ...
+                'lShowStores', true, ...
+                'lShowUnit', false, ...
+                'lShowInitButton', false, ...
+                'lShowInitState', false, ...
+                'lShowZero', false, ...
+                'lShowRel', false, ...
+                'lShowPlay', false, ...
+                'fhValidateDest', @this.validateDest ... 
+            );
+        end
+        
+                
+        function initHardwareUIStages(this)
+                                    
+            
             cPathConfigMaskX = fullfile(...
                 this.cDirApp, ...
                 'config', ...
@@ -2976,7 +3291,7 @@ classdef Main < HandlePlus
                 'filterY.json' ...
             );
             
-            configMono = ConfigHardwareIOPlus(cPathConfigMono);
+            
             configMaskX = ConfigHardwareIOPlus(cPathConfigMaskX);
             configMaskY = ConfigHardwareIOPlus(cPathConfigMaskY);
             configMaskZ = ConfigHardwareIOPlus(cPathConfigMaskZ);
@@ -2984,23 +3299,7 @@ classdef Main < HandlePlus
             configDetX = ConfigHardwareIOPlus(cPathConfigDetX);
             configDetT = ConfigHardwareIOPlus(cPathConfigDetT);
             configFilterY = ConfigHardwareIOPlus(cPathConfigFilterY);
-            
-            
-            
-            % Mono
-            this.hioMono = HardwareIOPlus(...
-                'cName', 'mono', ...
-                'cLabel', 'mono', ...
-                'clock', this.clock, ...
-                'config', configMono, ...
-                'dColorBg', this.dColorBgStages, ...
-                'dWidthName', this.dWidthHioName, ...
-                'dWidthUnit', this.dWidthHioUnit, ...
-                'dWidthVal', this.dWidthHioVal, ...
-                'lShowInitButton', true, ...
-                'lShowInitState', false, ...
-                'fhValidateDest', @this.validateDest ... 
-            );
+           
             
             % MaskX
             
@@ -3012,12 +3311,15 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
                 'fhValidateDest', @this.validateDest, ... 
-                'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
+                'lShowLabels', true, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowRange', true, ...
+                'lShowZero', false, ...
                 'lShowRel', false ...
             ); 
             
@@ -3031,7 +3333,10 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
-                'fhValidateDest', @this.validateDest, ... 
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
+                'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
@@ -3050,7 +3355,10 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
                 'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
@@ -3069,7 +3377,10 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
-                'fhValidateDest', @this.validateDest, ... 
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
+                'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
@@ -3088,7 +3399,10 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
-                'fhValidateDest', @this.validateDest, ... 
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
+                'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
@@ -3107,7 +3421,10 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
-                'fhValidateDest', @this.validateDest, ... 
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
+                'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
@@ -3126,27 +3443,31 @@ classdef Main < HandlePlus
                 'dWidthName', this.dWidthHioName, ...
                 'dWidthUnit', this.dWidthHioUnit, ...
                 'dWidthVal', this.dWidthHioVal, ...
+                'dWidthStores', this.dWidthHioStores, ...
+                'dWidthRange', this.dWidthHioRange, ...
                 'fhValidateDest', @this.validateDest, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
+                'lShowRange', true, ...
                 'lShowZero', false, ...
                 'lShowRel', false ...
             ); 
 
-            this.keithley = Keithley6482( ...
-                'cName', 'keithley 6482', ...
-                'clock', this.clock, ...
-                'lShowRange', false, ...
-                'lShowSettings', false ...
-            );
-        
-        
             mono = struct();
             % mono.cName = 'mono';
             mono.hio = this.hioMono;
             mono.lMoveRequired = false;
             mono.lMoveIssued = false;
+            
+            % LEFT OFF HERE
+
+            grating = struct();
+            % mono.cName = 'mono';
+            grating.hio = this.hioGrating;
+            grating.lMoveRequired = false;
+            grating.lMoveIssued = false;
             
             maskX = struct();
             % maskX.cName = 'maskX';
@@ -3204,6 +3525,7 @@ classdef Main < HandlePlus
             
             this.stHIO = struct();
             this.stHIO.(this.cFieldMono) = mono;
+            this.stHIO.(this.cFieldGrating) = grating;
             this.stHIO.(this.cFieldMaskX) = maskX;
             this.stHIO.(this.cFieldMaskY) = maskY;
             this.stHIO.(this.cFieldMaskZ) = maskZ;
@@ -3211,45 +3533,121 @@ classdef Main < HandlePlus
             this.stHIO.(this.cFieldDetX) = detX;
             this.stHIO.(this.cFieldDetT) = detT;
             this.stHIO.(this.cFieldFilterY) = filterY;
+        end
+        
+        function initHardwareUIKeithley(this)
             
-            
-            st1 = struct();
-            st1.lAsk        = true;
-            st1.cTitle      = 'Switch?';
-            st1.cQuestion   = 'Do you want to connect all hardware to the real Api?';
-            st1.cAnswer1    = 'Yes.';
-            st1.cAnswer2    = 'No not yet.';
-            st1.cDefault    = st1.cAnswer2;
-
-
-            st2 = struct();
-            st2.lAsk        = true;
-            st2.cTitle      = 'Switch?';
-            st2.cQuestion   = 'Do you want to disconnect all hardware (go into virtual mode)?';
-            st2.cAnswer1    = 'Yes of course!';
-            st2.cAnswer2    = 'No not yet.';
-            st2.cDefault    = st2.cAnswer2;
-
-            this.uitStageApi = UIToggle( ...
-                'Connect', ...   % (off) not active
-                'Disconnect', ...  % (on) active
-                false, ...
-                [], ...
-                [], ...
-                st1, ...
-                st2 ...
+            this.keithley = Keithley6482( ...
+                'cName', 'keithley 6482', ...
+                'clock', this.clock, ...
+                'lAskOnApiClick', this.lHioAskOnApiClick, ...
+                'lShowRange', false, ...
+                'lShowSettings', false ...
             );
+            
+        end
         
-            this.uitStageApi.setTooltip(this.cTooltipConnect);
+        function initStartStopStepsStores(this)
+                        
+            this.initStartStopStepsStore1();
+            this.initStartStopStepsStore2();
+        end
+                
+        function initStartStopStepsStore1(this)
+            
+            this.stStartStopStepsStore1 = struct();
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).start = 13.4;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).stop = 13.6;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).start = -5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).stop = 5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).start = -5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).stop = 5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).start = -5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).stop = 5;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).start = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).stop = 20;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).start = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).stop = 20;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).start = 20;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).stop = 40;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).start = 0;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).stop = 20;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).start = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).stop = 20;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 10;
+            
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).start = 0;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).stop = 60;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).steps = 60;
+            
+        end
         
-            addlistener(this.uitStageApi, 'eChange', @this.onStageApiChange);
-
+        
+        function initStartStopStepsStore2(this)
+            
+            this.stStartStopStepsStore2 = struct();
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).start = 13.4;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).stop = 13.6;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).start = -5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).stop = 5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).start = -5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).stop = 5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).start = -5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).stop = 5;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).start = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).stop = 20;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).start = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).stop = 20;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).start = 20;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).stop = 40;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).start = 0;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).stop = 20;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).start = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).stop = 20;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 10;
+            
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).start = 0;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).stop = 60;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).steps = 60;
+            
         end
         
         function initSettings(this)
             
             this.uibChooseDir = UIButton('Change');
-            this.uitxDirLabel = UIText('Directory');
+            this.uitxDirLabel = UIText('Dir:');
             this.uitxDir = UIText('');
             this.uieOperator = UIEdit('Operator', 'c', true);
             this.uieMeta = UIEdit('Sample Metadata', 'c', true);
@@ -3282,8 +3680,8 @@ classdef Main < HandlePlus
             [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));            
 
             this.cDirApp = fullfile(cDirThis, '..', '..', '..', '..');
-            this.cDirRecipe  = fullfile(this.cDirApp, 'scans');
-            this.cDirResult = fullfile(this.cDirApp, 'scans');
+            this.cDirRecipe = this.path2canonical(fullfile(this.cDirApp, 'scans'));
+            this.cDirResult = this.path2canonical(fullfile(this.cDirApp, 'scans'));
             
             this.initSettings();
                        
@@ -3294,7 +3692,12 @@ classdef Main < HandlePlus
             ); 
         
             
-            this.initHardwareUI();
+            this.initConnectAll();
+            
+            this.initHardwareUIMono();
+            this.initHardwareUIStages();
+            this.initHardwareUIKeithley();
+            % this.initHardwareUI();
             
             this.initDevices();
             this.setApis();
@@ -3432,6 +3835,8 @@ classdef Main < HandlePlus
             this.uitxLabelControlJogR = UIText('Jog+');
             %}
             
+            this.initStartStopStepsStores();
+            
             % Load previous state before adding listeners
             this.load();
 
@@ -3490,7 +3895,7 @@ classdef Main < HandlePlus
                 @this.onStateScanSetState, ...
                 @this.onStateScanIsAtState, ...
                 @this.onStateScanAcquireLL, ... % doesn't do anything
-                @this.onStateScanIsAcquired, ... % returs true
+                @this.onStateScanIsAcquired, ... % returns true
                 @this.onStateScanCompleteLL, ...
                 @this.onStateScanAbortLL ...
             );
@@ -3537,6 +3942,8 @@ classdef Main < HandlePlus
         function onStateScanAbortLL(this, stUnit)
             % Don't do anything
         end
+        
+       
         
     end 
     

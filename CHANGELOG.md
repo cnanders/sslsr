@@ -1,3 +1,24 @@
+# 1.0.0-alpha.8
+
+### sins.main.Main
+
+- Added stored filter positions to config/filterY.json
+- Built wrapper for controlling the wavelength
+- Changed filename for recipe and result files.  The filename now reads {date}-{result}.{ext} instead of {result}-{date}.{ext}.
+- Now save result.csv file in addition to result.json file
+- Now store values of start, stop, steps for each device type and when device type changes, start, stop, steps are updated with the previous values from that device type.
+- Made necessary updates to only update the plot one time when changing the device, despite setting three UIEdits (start, stop, steps) that all have onChange() handlers.
+- Font size in plots now settable and uniform
+- Relative paths that display in the GUI and in the results.json file are now canonical, i.e., C:\A\B\..\C reads C:\A\C
+- Fixed error with updatePlot() for script scan types.  I was using case xxxx case xxxx right after one another, as you would do in JS but in matlab for a single case to handle multiple values, need to use a cell of the values.
+- Making "change directory" "choose script" and "open script" 24 px tall to be consistent.
+- Truncating script path to 30 characters so it does not wrap.
+- Building hook to connect hioWav and hioGrating so turning on/off hioWav does same for hioGrating and also hacking the UI so they look like one component.
+- Added dWidthPanelBorder property to turn all panel borders on/off
+- Added dColorBgFigure to set background of figure.  This makes panels pop w/o using borders.
+- Made the dir chooser and visualizer nicer.
+
+
 # 1.0.0-alpha.7
 
 ### sins.axis.ApiHardwareIOPlusFromAxis
@@ -9,6 +30,7 @@
 - Updated assignApis() to use ApiHardwareIO*FromAxis(deviceMaskX) 
 - UNDO on items 1 and 2.  Found out that having properties of the class that reference Java objects is a problem. I now directly create the API
 - Refactored delete() into several delete*() methods that compartmentally delete related groups of objects/references
+- No longer contains properties that reference cxro.device.common.Axis objects.  This was causing problems.  Now when Java objects are instantiated they not connected to the sins.main.Main class
 
 # 1.0.0-alpha.6
 

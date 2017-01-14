@@ -60,6 +60,7 @@ classdef SinsTest < HandlePlus
         function initDevices(this)
             
             return;
+            
             this.deviceSins = nus.sins2.Sins2Instruments();
             % this.deviceFilterY = this.deviceSins.getFilterStage();
             this.deviceMaskT = this.deviceSins.getMaskT();

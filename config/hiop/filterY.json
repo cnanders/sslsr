@@ -11,25 +11,41 @@
 			"name": "um",
 			"slope": 1000,
 			"offset": 0,
-			"precision": 3
-		},
-		{
-			"name": "m",
-			"slope": 1e-3,
-			"offset": 0,
-			"precision": 3
+			"precision": 1
 		}
 	],
     "stores": [
         {
-            "name": "test-a",
-            "raw": 10
+            "name": "ES211 (0)",
+            "raw": 0
         },
         {
-            "name": "test-b",
-            "raw": 20
+            "name": "FTR_1 (20.92)",
+            "raw": 20.92
+        },
+        {
+            "name": "FTR_2 (45.92)",
+            "raw": 45.92
+        },
+        {
+            "name": "FTR_3 (70.92)",
+            "raw": 70.92
+        },
+        {
+            "name": "FTR_4 (95.92)",
+            "raw": 95.92
+        },
+        {
+            "name": "FTR_YaG (120.92)",
+            "raw": 120.92
+        },
+        {
+            "name": "FTR_PD (145.92)",
+            "raw": 145.92
         }
-    ]
+    ],
+    "min": 0,
+    "max": 150
 }	
 	
 	

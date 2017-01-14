@@ -1,0 +1,32 @@
+{
+	"delay": 0.2,
+	"units": [
+		{
+			"name": "l/mm",
+			"slope": 1,
+			"offset": 0,
+			"precision": 0
+		}
+	],
+    "stores": [
+        {
+            "name": "130",
+            "raw": 130
+        },
+        {
+            "name": "300",
+            "raw": 300
+        },
+        {
+            "name": "600",
+            "raw": 600
+        },
+        {
+            "name": "1200",
+            "raw": 1200
+        }
+    ]
+    
+}	
+	
+	
