@@ -1,3 +1,10 @@
+# 1.0.0-alpha.9
+
+### sins.main.Main
+- save() and load() now work. The entire state, including stStartStopStepsStore1 and 2, are saved on close.  Loading a fresh instance loads the previous state.
+- fixed problem with delete() calling things out of order (the clock was getting deleted before hioGrating). I also separated delete() into several deleteHardwareUI*() methods
+
+
 # 1.0.0-alpha.8
 
 ### sins.main.Main

@@ -147,7 +147,7 @@ classdef Main < HandlePlus
     
     properties (SetAccess = private)
     
-        cName = 'nus';
+        cName = 'main';
         cDir
         ceValues % cell of structures
         
@@ -268,7 +268,7 @@ classdef Main < HandlePlus
         stMoveIssued        % struct of logical that stores which param move
                             % commands have been issued
        
-        stHIO   % Convient structure for storion all HIO instances for looping
+        stHio   % Convient structure for storion all HIO instances for looping
         ceHIOs % Convenient way to store all of the HIOs for looping
         
         
@@ -427,11 +427,11 @@ classdef Main < HandlePlus
             
             % Reset lMoveRequired and lMoveIssued for every prop
             
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             
             for n = 1:length(ceNames)
-                this.stHIO.(ceNames{n}).lMoveRequired = false;
-                this.stHIO.(ceNames{n}).lMoveIssued = false;
+                this.stHio.(ceNames{n}).lMoveRequired = false;
+                this.stHio.(ceNames{n}).lMoveIssued = false;
             end
             
             % Loop through all props that are being set and command them
@@ -452,10 +452,10 @@ classdef Main < HandlePlus
                     
                     this.uitxStatus.cVal = cStatus;
                 else
-                    this.stHIO.(ceProps{n}).lMoveRequired = true;
-                    this.stHIO.(ceProps{n}).hio.setDestCal(dValue, cUnit);
-                    this.stHIO.(ceProps{n}).hio.moveToDest();
-                    this.stHIO.(ceProps{n}).lMoveIssued = true;
+                    this.stHio.(ceProps{n}).lMoveRequired = true;
+                    this.stHio.(ceProps{n}).hio.setDestCal(dValue, cUnit);
+                    this.stHio.(ceProps{n}).hio.moveToDest();
+                    this.stHio.(ceProps{n}).lMoveIssued = true;
                 end
                 
             end
@@ -500,19 +500,19 @@ classdef Main < HandlePlus
                 end
                 
                 
-                if this.stHIO.(ceNames{n}).lMoveRequired
+                if this.stHio.(ceNames{n}).lMoveRequired
                     if lDebug
                         this.msg(sprintf('onStateScanIsAtState() %s has move required', ceNames{n}));
                     end
 
-                    if this.stHIO.(ceNames{n}).lMoveIssued
+                    if this.stHio.(ceNames{n}).lMoveIssued
                         
                         % move has been issued
                         if lDebug
                             this.msg(sprintf('onStateScanIsAtState() %s move issued', ceNames{n}));
                         end
                         
-                        if this.stHIO.(ceNames{n}).hio.lReady
+                        if this.stHio.(ceNames{n}).hio.lReady
                         	if lDebug
                                 this.msg(sprintf('onStateScanIsAtState() %s reached dest', ceNames{n}));
                             end
@@ -686,9 +686,9 @@ classdef Main < HandlePlus
             end
         end
         
-        function build(this)
-                       
-            % Figure
+        function buildFigure(this)
+            
+             % Figure
           
             if ishghandle(this.hFigure)
                 % Bring to front
@@ -722,28 +722,29 @@ classdef Main < HandlePlus
                 % set(this.hFigure, 'toolbar', 'figure');
 
             end
-            
-            
+        end
+        
+        function build(this)
+                       
+            this.buildFigure();
             this.buildPanelMono();
             this.buildPanelStages();  
             this.buildPanelPicoammeter();
             this.buildPanelSettings();
             this.buildPanelScan();
             this.buildPanelResult(); % builds two panels
-            
-            % Set uipType to its current value to force the
-            % onTypeChange listener sequence to fire off and update the
-            % panels / plots
-            
-            this.uipType.u8Selected = this.uipType.u8Selected;
+            this.buildConnectAll();
         
         end
         
         function deleteDevices(this)
             
+            % RETURN %
+            % initDevices() also returns
             return;
-            this.msg('deleteDevices()');
             
+            
+            this.msg('deleteDevices()');
             
             % this.deviceSins.destroy();
             this.deviceMaskX.destroy(); 
@@ -758,11 +759,22 @@ classdef Main < HandlePlus
             
         end
         
-        function deleteHardwareUI(this)
-            this.msg('deleteHardwareUI()');
-            
-            this.turnOff();
+        function deleteHardwareUIMono(this)
+        
+            this.msg('deleteHardwareUIMono()');
             delete(this.hioMono);
+            delete(this.hioGrating);
+            
+        end
+        
+        function deleteHardwareUIKeithley(this)
+            this.msg('deleteHardwareUIKeithley()');
+            delete(this.keithley); 
+        end
+        
+        function deleteHardwareUIStages(this)
+            this.msg('deleteHardwareUIStages()');
+            
             delete(this.hioMaskX);
             delete(this.hioMaskY);
             delete(this.hioMaskZ);
@@ -770,10 +782,12 @@ classdef Main < HandlePlus
             delete(this.hioDetX);
             delete(this.hioDetT);
             delete(this.hioFilterY);
-            delete(this.keithley);
+            
         end
         
-        function deleteSettingsPanel(this)
+        function deletePanelSettings(this)
+            
+            this.msg('deletePanelSettings()');
             delete(this.uieOperator);
             delete(this.uieMeta);
             delete(this.uieSettle);
@@ -782,7 +796,9 @@ classdef Main < HandlePlus
             delete(this.uitxDirLabel);
         end
         
-        function deleteScanPanel(this)
+        function deletePanelScan(this)
+            
+            this.msg('deletePanelScan()');
             delete(this.uipType);
             delete(this.uipDevice1);
             delete(this.uieStart1);
@@ -823,13 +839,18 @@ classdef Main < HandlePlus
         function delete(this)
             
             this.msg('delete()');
-            % this.save();
-     
-            this.deleteHardwareUI();
-            this.deleteDevices();
-            this.deleteSettingsPanel();
-            this.deleteScanPanel();
+            this.turnOff();
             
+            this.save();
+     
+            this.deleteHardwareUIStages();
+            this.deleteHardwareUIMono();
+            this.deleteHardwareUIKeithley();
+            
+            this.deletePanelSettings();
+            this.deletePanelScan();
+            
+            this.deleteDevices();
             
             delete(this.uitStageApi);
             delete(this.hFigure);
@@ -840,9 +861,9 @@ classdef Main < HandlePlus
         function turnOn(this)
            
             % HIOs
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             for n = 1:length(ceNames)
-                this.stHIO.(ceNames{n}).hio.turnOn();
+                this.stHio.(ceNames{n}).hio.turnOn();
             end
             
             % Keithley
@@ -855,9 +876,9 @@ classdef Main < HandlePlus
         function turnOff(this)
             
             % HIOs
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             for n = 1:length(ceNames)
-                this.stHIO.(ceNames{n}).hio.turnOff();
+                this.stHio.(ceNames{n}).hio.turnOff();
             end
             
             % Keithley
@@ -914,6 +935,7 @@ classdef Main < HandlePlus
             
         
         function onClose(this, src, evt)
+            this.msg('onClose()');
             this.delete();
         end
         
@@ -1110,20 +1132,20 @@ classdef Main < HandlePlus
         
         
         function load(this)
-            
-            this.msg('load()', 7);
+                        
+            this.msg('load()');
 
             if exist(this.file(), 'file') == 2
                 load(this.file()); % populates variable s in local workspace
+                s
                 this.loadClassInstance(s); 
             end
-            
             
         end
         
         function save(this)
             
-            this.msg('save()', 7);
+            this.msg('save()');
             
             % Create a nested recursive structure of all public properties
             s = this.saveClassInstance();            
@@ -1139,7 +1161,7 @@ classdef Main < HandlePlus
             this.checkDir(this.cDirSave);
             cReturn = fullfile(...
                 this.cDirSave, ...
-                [this.cName, '.mat']...
+                [this.cName, '-saved-state.mat']...
             );
             
         end
@@ -1521,9 +1543,9 @@ classdef Main < HandlePlus
             
             st = struct();
             % HIOs
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             for n = 1:length(ceNames)
-                st.(ceNames{n}) = this.stHIO.(ceNames{n}).hio.unit().name;
+                st.(ceNames{n}) = this.stHio.(ceNames{n}).hio.unit().name;
                 
             end
             st.time = 'local';
@@ -1540,10 +1562,10 @@ classdef Main < HandlePlus
                        
             st = struct();
             % HIOs
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             for n = 1:length(ceNames)
-                % st.(ceNames{n}) = this.stHIO.(ceNames{n}).hio.valCal(stUnit.(ceNames{n}));
-                st.(ceNames{n}) = this.stHIO.(ceNames{n}).hio.valCalDisplay();
+                % st.(ceNames{n}) = this.stHio.(ceNames{n}).hio.valCal(stUnit.(ceNames{n}));
+                st.(ceNames{n}) = this.stHio.(ceNames{n}).hio.valCalDisplay();
             end
             
             %{
@@ -1891,11 +1913,11 @@ classdef Main < HandlePlus
 
                     cLabel = sprintf('%s = %1.*f %s, %1.*f %s', ...
                         cDevice, ...
-                        this.stHIO.(this.cFieldMaskT).hio.unit().precision, ...
-                        this.stHIO.(this.cFieldMaskT).hio.valCal(stUnit.(this.cFieldMaskT)), ...
+                        this.stHio.(this.cFieldMaskT).hio.unit().precision, ...
+                        this.stHio.(this.cFieldMaskT).hio.valCal(stUnit.(this.cFieldMaskT)), ...
                         stUnit.(this.cFieldMaskT), ...
-                        this.stHIO.(this.cFieldDetT).hio.unit().precision, ...
-                        this.stHIO.(this.cFieldDetT).hio.valCal(stUnit.(this.cFieldDetT)), ...
+                        this.stHio.(this.cFieldDetT).hio.unit().precision, ...
+                        this.stHio.(this.cFieldDetT).hio.valCal(stUnit.(this.cFieldDetT)), ...
                         stUnit.(this.cFieldDetT)...
                     ); 
                  
@@ -1911,8 +1933,8 @@ classdef Main < HandlePlus
                     cField = this.deviceField(cDevice);
                     cLabel = sprintf('%s = %1.*f %s', ...
                         cDevice, ...
-                        this.stHIO.(cField).hio.unit().precision, ...
-                        this.stHIO.(cField).hio.valCal(stUnit.(cField)), ...
+                        this.stHio.(cField).hio.unit().precision, ...
+                        this.stHio.(cField).hio.valCal(stUnit.(cField)), ...
                         stUnit.(cField)...
                     );   
                     
@@ -2085,13 +2107,7 @@ classdef Main < HandlePlus
             
         end
             
-        
-        function handleCloseRequestFcn(this, src, evt)
-            
-            % this.delete();
-            % this.saveState();
-        end
-        
+               
         % Get the name of the field/prop of the recipe/result that is being
         % varied in the 1D scan
         
@@ -2284,12 +2300,12 @@ classdef Main < HandlePlus
                 case this.cDeviceMaskTDet2T
                     this.uitxUnit1.cVal = sprintf(...
                         '%s, %s', ...
-                        this.stHIO.(this.cFieldMaskT).hio.unit().name, ...
-                        this.stHIO.(this.cFieldDetT).hio.unit().name ...
+                        this.stHio.(this.cFieldMaskT).hio.unit().name, ...
+                        this.stHio.(this.cFieldDetT).hio.unit().name ...
                     );
                 otherwise
                     cField = this.deviceField(this.uipDevice1.val());
-                    this.uitxUnit1.cVal = this.stHIO.(cField).hio.unit().name;
+                    this.uitxUnit1.cVal = this.stHio.(cField).hio.unit().name;
             end
         end
         
@@ -2305,12 +2321,12 @@ classdef Main < HandlePlus
                 case this.cDeviceMaskTDet2T
                     this.uitxUnit2.cVal = sprintf(...
                         '%s, %s', ...
-                        this.stHIO.(this.cFieldMaskT).hio.unit().name, ...
-                        this.stHIO.(this.cFieldDetT).hio.unit().name ...
+                        this.stHio.(this.cFieldMaskT).hio.unit().name, ...
+                        this.stHio.(this.cFieldDetT).hio.unit().name ...
                     );
                 otherwise
                     cField = this.deviceField(this.uipDevice2.val());
-                    this.uitxUnit2.cVal = this.stHIO.(cField).hio.unit().name;
+                    this.uitxUnit2.cVal = this.stHio.(cField).hio.unit().name;
             end
         end
         
@@ -2867,6 +2883,12 @@ classdef Main < HandlePlus
             this.uibSwap.setTooltip(this.cTooltipSwap);
             this.uitPlay.setTooltip(this.cTooltipScanStart);
             this.uibCancel.setTooltip(this.cTooltipScanAbort);
+            
+            % Set uipType to its current value to force the
+            % onTypeChange listener sequence to fire off and update the
+            % panels / plots
+            
+            this.uipType.u8Selected = this.uipType.u8Selected;
 
         end
         
@@ -3070,11 +3092,16 @@ classdef Main < HandlePlus
             this.uibLoadLock.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio + 5, 120, this.dHeightButton) 
             
             
-            %{
-            this.uitStageApi.build(this.hPanelStages, dLeft, dTop, 120, this.dWidthBtn);
-            dLeft = dLeft + this.dWidthBtn + 5; 
-            %}
             
+            
+        end
+        
+        function buildConnectAll(this)
+            
+            dLeft = 1200;
+            dTop = 400;
+            
+            this.uitStageApi.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
             
             % this.uitxLabelStagesApi.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
             % dLeft = dLeft + 50;
@@ -3084,16 +3111,16 @@ classdef Main < HandlePlus
         function setApis(this)
             
             this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            return
+            % return
             
             % Temporarily set all Apis to virtual Apis
             
             %{
             % HIOs
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             for n = 1:length(ceNames)
-                cName = sprintf('%s-real', this.stHIO.(ceNames{n}).hio.cName);
-                this.stHIO.(ceNames{n}).hio.setApi(ApivHardwareIOPlus(cName, 0, this.clock));
+                cName = sprintf('%s-real', this.stHio.(ceNames{n}).hio.cName);
+                this.stHio.(ceNames{n}).hio.setApi(ApivHardwareIOPlus(cName, 0, this.clock));
             end
             %}
             
@@ -3113,18 +3140,18 @@ classdef Main < HandlePlus
             
             
             % Mono, Filter Y special case for now FIX ME
-            % this.stHIO.(this.cFieldMono).hio.setApi(ApivHardwareIOPlus('mono-real', 0, this.clock));
-            % this.stHIO.(this.cFieldFilterY).hio.setApi(ApivHardwareIOPlus('filter-y-real', 0, this.clock));
+            % this.stHio.(this.cFieldMono).hio.setApi(ApivHardwareIOPlus('mono-real', 0, this.clock));
+            % this.stHio.(this.cFieldFilterY).hio.setApi(ApivHardwareIOPlus('filter-y-real', 0, this.clock));
               
-            this.stHIO.(this.cFieldMono).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('wav'));
-            this.stHIO.(this.cFieldGrating).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('grating'));
-            this.stHIO.(this.cFieldMaskX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskX))
-            this.stHIO.(this.cFieldMaskY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskY))
-            this.stHIO.(this.cFieldMaskZ).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskZ))
-            this.stHIO.(this.cFieldMaskT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT))
-            this.stHIO.(this.cFieldDetX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetX))
-            this.stHIO.(this.cFieldDetT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetT))
-            this.stHIO.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
+            this.stHio.(this.cFieldMono).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('wav'));
+            this.stHio.(this.cFieldGrating).hio.setApi(sins.mono.ApiHardwareIOPlusFromMono('grating'));
+            this.stHio.(this.cFieldMaskX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskX))
+            this.stHio.(this.cFieldMaskY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskY))
+            this.stHio.(this.cFieldMaskZ).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskZ))
+            this.stHio.(this.cFieldMaskT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT))
+            this.stHio.(this.cFieldDetX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetX))
+            this.stHio.(this.cFieldDetT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetT))
+            this.stHio.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
             
             
             
@@ -3149,8 +3176,8 @@ classdef Main < HandlePlus
             st2.cDefault    = st2.cAnswer2;
 
             this.uitStageApi = UIToggle( ...
-                'Connect', ...   % (off) not active
-                'Disconnect', ...  % (on) active
+                'Connect All', ...   % (off) not active
+                'Disconnect All', ...  % (on) active
                 false, ...
                 [], ...
                 [], ...
@@ -3523,16 +3550,16 @@ classdef Main < HandlePlus
             this.ceHIOs{8} = filterY;
             %}
             
-            this.stHIO = struct();
-            this.stHIO.(this.cFieldMono) = mono;
-            this.stHIO.(this.cFieldGrating) = grating;
-            this.stHIO.(this.cFieldMaskX) = maskX;
-            this.stHIO.(this.cFieldMaskY) = maskY;
-            this.stHIO.(this.cFieldMaskZ) = maskZ;
-            this.stHIO.(this.cFieldMaskT) = maskT;
-            this.stHIO.(this.cFieldDetX) = detX;
-            this.stHIO.(this.cFieldDetT) = detT;
-            this.stHIO.(this.cFieldFilterY) = filterY;
+            this.stHio = struct();
+            this.stHio.(this.cFieldMono) = mono;
+            this.stHio.(this.cFieldGrating) = grating;
+            this.stHio.(this.cFieldMaskX) = maskX;
+            this.stHio.(this.cFieldMaskY) = maskY;
+            this.stHio.(this.cFieldMaskZ) = maskZ;
+            this.stHio.(this.cFieldMaskT) = maskT;
+            this.stHio.(this.cFieldDetX) = detX;
+            this.stHio.(this.cFieldDetT) = detT;
+            this.stHio.(this.cFieldFilterY) = filterY;
         end
         
         function initHardwareUIKeithley(this)
@@ -3541,7 +3568,12 @@ classdef Main < HandlePlus
                 'cName', 'keithley 6482', ...
                 'clock', this.clock, ...
                 'lAskOnApiClick', this.lHioAskOnApiClick, ...
+                'dWidthPadData', 24, ...
+                'dWidthName', 0, ...
+                'lShowName', false, ...
                 'lShowRange', false, ...
+                'cLabelChannel1', 'channel 1', ...
+                'cLabelChannel2', 'channel 2', ...
                 'lShowSettings', false ...
             );
             
@@ -3558,43 +3590,43 @@ classdef Main < HandlePlus
             this.stStartStopStepsStore1 = struct();
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).start = 13.4;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).stop = 13.6;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMono)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).start = -5;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).stop = 5;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskX)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).start = -5;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).stop = 5;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskY)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).start = -5;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).stop = 5;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskZ)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).start = 10;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).stop = 20;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).start = 10;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).stop = 20;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceDetX)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).start = 20;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).stop = 40;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskT)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).start = 0;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).stop = 20;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceFilterY)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).start = 10;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).stop = 20;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 10;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 11;
             
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).start = 0;
             this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).stop = 60;
-            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).steps = 60;
+            this.stStartStopStepsStore1.(this.deviceField(this.cDeviceTime)).steps = 61;
             
         end
         
@@ -3604,43 +3636,43 @@ classdef Main < HandlePlus
             this.stStartStopStepsStore2 = struct();
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).start = 13.4;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).stop = 13.6;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMono)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).start = -5;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).stop = 5;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskX)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).start = -5;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).stop = 5;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskY)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).start = -5;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).stop = 5;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskZ)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).start = 10;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).stop = 20;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).start = 10;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).stop = 20;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceDetX)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).start = 20;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).stop = 40;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskT)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).start = 0;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).stop = 20;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceFilterY)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).start = 10;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).stop = 20;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 10;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceMaskTDet2T)).steps = 11;
             
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).start = 0;
             this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).stop = 60;
-            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).steps = 60;
+            this.stStartStopStepsStore2.(this.deviceField(this.cDeviceTime)).steps = 61;
             
         end
         
@@ -3688,7 +3720,7 @@ classdef Main < HandlePlus
             this.cDirSave = fullfile( ...
                 this.cDirApp, ...
                 'save', ...
-                'sslsr' ...
+                'main' ...
             ); 
         
             
@@ -3842,10 +3874,10 @@ classdef Main < HandlePlus
 
             
             
-            ceNames = fieldnames(this.stHIO);
+            ceNames = fieldnames(this.stHio);
             
             for n = 1:length(ceNames)
-                addlistener(this.stHIO.(ceNames{n}).hio, 'eUnitChange', @this.onHIOUnitChange);
+                addlistener(this.stHio.(ceNames{n}).hio, 'eUnitChange', @this.onHIOUnitChange);
             end
             
 
@@ -3913,8 +3945,8 @@ classdef Main < HandlePlus
             % MaskT and DetT, but later on can make what it needs to be.
                         
             stUnit = struct();            
-            stUnit.(this.cFieldMaskT) = this.stHIO.(this.cFieldMaskT).hio.unit().name;
-            stUnit.(this.cFieldDetT) = this.stHIO.(this.cFieldDetT).hio.unit().name;
+            stUnit.(this.cFieldMaskT) = this.stHio.(this.cFieldMaskT).hio.unit().name;
+            stUnit.(this.cFieldDetT) = this.stHio.(this.cFieldDetT).hio.unit().name;
             
             % Value structure of LL state
             stValue = struct();
