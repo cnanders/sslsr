@@ -1,3 +1,18 @@
+# 1.0.0-alpha.10
+
+### sins.main.Main
+- Steps field in GUI is now steps, not samples.  Samples = steps + 1. Updated all data storage and plotting to accommodate this change (requested by E. Gullikson)
+- StateScan.onSetState() now calls setDestCalDisplay(), ensuring that the values entered to the scan match whatever unit and abs/rel is configured in the HardwareUIs
+- config/maskZ.json now has a slope of -1 so + moves the stage up and - moves the stage down
+- Now set xlim of 1D plots to bounds of the scan range.   If the user is editing start and stop and they are the same value, min() and max() are the same and MATLAB throws an error. I wrapped the xlim() in a check for non-equality between max() and min().
+- Added a toggle to switch y-axis between linear and logarithmic
+- Changed label on y-axis to A, not uA, which was incorrect.
+- onStateScanAbort() now calls a new method, stopMotors(), which issues stop command to all motors
+- Fixed problem with newly added cellOfSt2structAr() method. If the scan was aborted before any data was stored, every item in the cell array it was checking would be empty.  dIndex, the list of non-zero indexes of the cell, would also be empty and MATLAB would throw an error.  Now when dIndex is empty, an empty struct is returned. In this scenario, saveScanResultsCsv() does not write a .csv file since there is nothing to write.
+- Added grid and minor grid to the 1D plots
+- recipe.json, result.json and result.csv are now saved to a new folder for each scan.  I found that it was difficult to dig through the single folder of recipe.json, result.json and result.csv files and distinguish which sets belonged together.
+- 
+
 # 1.0.0-alpha.9
 
 ### sins.main.Main

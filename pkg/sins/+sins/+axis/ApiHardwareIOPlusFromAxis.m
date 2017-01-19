@@ -46,6 +46,7 @@ classdef ApiHardwareIOPlusFromAxis < InterfaceApiHardwareIOPlus
         end
 
         function d = get(this)
+            % this.msg('get');
             d = this.axis.getPosition();
         end
 

@@ -75,7 +75,7 @@ classdef Main < HandlePlus
         dWidthDir = 350
         dWidthEditSep = 5
         
-        dWidthPanelStages = 625
+        dWidthPanelStages = 670
         dHeightPanelStages = 250
         
         dWidthPanelMono = 670;
@@ -100,6 +100,8 @@ classdef Main < HandlePlus
         
         dSizeFont = 8;
         
+        cTooltipPlotTypeLog = 'Toggle y-axis on plots to be linear.  Currently logarithmic.';
+        cTooltipPlotTypeLin = 'Toggle y-axis on plots to be logarithmic.  Currently linear.';
         cTooltipScanResume = 'Continue with the scan'
         cTooltipScanStart = 'Begin a new scan with the current configuration'
         cTooltipScanAbort = 'Abort the scan. All data up to now will be saved in the result.json file'
@@ -119,10 +121,12 @@ classdef Main < HandlePlus
         
         % Stuff you want to be able to load / save and allow 
         
-        % {char 1xm} - absolute directory for saving recipe.json files
-        cDirRecipe
-        % {char 1xm} - absolute directory for saving result.json files
-        cDirResult
+        % {char 1xm} - absolute directory for top-level containing scan
+        % folders
+        cDirSave
+        
+        % {char 1xm} - absolute directory for saving current recipe.json and result.json files
+        cDirScan
         
         uipType
         
@@ -142,6 +146,8 @@ classdef Main < HandlePlus
         
         stStartStopStepsStore1
         stStartStopStepsStore2
+        
+        uitPlotType
     
     end
     
@@ -244,7 +250,8 @@ classdef Main < HandlePlus
     
     properties (Access = private)
        
-        cDirSave
+        % {char 1x1} absolute path of directory for saving state.mat file
+        cDirSaveState
         clock 
         scan
         lIsScanning = false;
@@ -453,7 +460,7 @@ classdef Main < HandlePlus
                     this.uitxStatus.cVal = cStatus;
                 else
                     this.stHio.(ceProps{n}).lMoveRequired = true;
-                    this.stHio.(ceProps{n}).hio.setDestCal(dValue, cUnit);
+                    this.stHio.(ceProps{n}).hio.setDestCalDisplay(dValue, cUnit);
                     this.stHio.(ceProps{n}).hio.moveToDest();
                     this.stHio.(ceProps{n}).lMoveIssued = true;
                 end
@@ -590,9 +597,10 @@ classdef Main < HandlePlus
                     % of the matrix (so row needs to increment as we do a
                     % 2nd dim scan and col stays fixed
                     
+                    % Points per row = this.uieSteps2.val() + 1
                     
-                    dRow = mod(this.scan.u8Index - 1, this.uieSteps2.val()) + 1; % 2nd dim index
-                    dCol = floor((this.scan.u8Index - 1) / this.uieSteps2.val()) + 1; % 1st dim index
+                    dRow = mod(this.scan.u8Index - 1, this.uieSteps2.val() + 1) + 1; % 2nd dim index
+                    dCol = floor((this.scan.u8Index - 1) / (this.uieSteps2.val() + 1)) + 1; % 1st dim index
                     
                     this.d2DResultIDet(dRow, dCol) = stValue.iDet;
                     this.d2DResultIZero(dRow, dCol) = stValue.iZero;
@@ -710,6 +718,7 @@ classdef Main < HandlePlus
                         this.dHeight ...
                      ],... % left bottom width height
                     'Resize', 'off', ...
+                    'WindowButtonMotionFcn', @this.onMouseMotion, ...
                     'HandleVisibility', 'on', ... % lets close all close the figure
                     'Visible', 'on' ...
                     );
@@ -720,7 +729,7 @@ classdef Main < HandlePlus
                 % pan(this.hFigure);
                 % zoom(this.hFigure);
                 % set(this.hFigure, 'toolbar', 'figure');
-
+                datacursormode(this.hFigure, 'on');
             end
         end
         
@@ -734,6 +743,7 @@ classdef Main < HandlePlus
             this.buildPanelScan();
             this.buildPanelResult(); % builds two panels
             this.buildConnectAll();
+            this.buildPlotType();
         
         end
         
@@ -908,6 +918,10 @@ classdef Main < HandlePlus
             % https://www.mathworks.com/matlabcentral/answers/42283-index-non-empty-cells-in-cell-array
             dIndex = find(~cellfun(@isempty, ce));
             
+            if isempty(dIndex)
+                st = struct();
+                return;
+            end
             % {cell of struct 1xm} - subset of ce that contains non-empty
             % structures
             ceSub = ce(dIndex);
@@ -1158,9 +1172,9 @@ classdef Main < HandlePlus
         
         function cReturn = file(this)
             
-            this.checkDir(this.cDirSave);
+            this.checkDir(this.cDirSaveState);
             cReturn = fullfile(...
-                this.cDirSave, ...
+                this.cDirSaveState, ...
                 [this.cName, '-saved-state.mat']...
             );
             
@@ -1198,10 +1212,10 @@ classdef Main < HandlePlus
             
         end
         
-        function onChooseDirPress(this, src, evt)
+        function onChooseSaveDirPress(this, src, evt)
            
             cName = uigetdir(...
-                this.cDirResult, ...
+                this.cDirSave, ...
                 'Please choose a directory' ...
             );
         
@@ -1209,16 +1223,16 @@ classdef Main < HandlePlus
                return; % User clicked "cancel"
             end
             
-            this.cDirResult = this.path2canonical(cName);
+            this.cDirSave = this.path2canonical(cName);
             this.updateDirLabel();            
         end
         
         function updateDirLabel(this)
             this.uitxDir.setTooltip(sprintf(...
                 'The directory where scan recipe/result files are saved: %s', ...
-                this.cDirResult ...
+                this.cDirSave ...
             ));
-            this.uitxDir.cVal = this.truncate(this.cDirResult, 55, true);
+            this.uitxDir.cVal = this.truncate(this.cDirSave, 55, true);
         end
         
         
@@ -1248,6 +1262,52 @@ classdef Main < HandlePlus
             this.hioGrating.turnOff();
         end
         
+        function onMouseMotion(this, src, evt)
+            
+           return;
+           this.msg('onMouseMotion()');
+           
+           % If the mouse is inside the axes, turn the cursor into a
+           % crosshair, else make sure it is an arrow
+           
+           dCursor = get(this.hFigure, 'CurrentPoint');     % [left bottom]
+           
+           switch (this.uipType.val())
+               case this.cTypeOneDevice
+                   dAxes = get(this.hAxes1D, 'Position');             % [left bottom width height]
+               otherwise
+                   dAxes = get(this.hAxes1D, 'Position');  
+           end
+           
+           dCursorLeft =    dCursor(1);
+           dCursorBottom =  dCursor(2);
+           
+           dAxesLeft =      dAxes(1);
+           dAxesBottom =    dAxes(2);
+           dAxesWidth =     dAxes(3);
+           dAxesHeight =    dAxes(4);
+           
+           if   dCursorLeft > dAxesLeft && ...
+                dCursorLeft < dAxesLeft + dAxesWidth && ...
+                dCursorBottom > dAxesBottom && ...
+                dCursorBottom <= dAxesBottom + dAxesHeight
+            
+                
+                if strcmp(get(this.hFigure, 'Pointer'), 'arrow')
+                    set(this.hFigure, 'Pointer', 'crosshair')
+                end
+                
+            
+           else
+           
+                if ~strcmp(get(this.hFigure, 'Pointer'), 'arrow')
+                    set(this.hFigure, 'Pointer', 'arrow')
+                end
+                
+           end
+ 
+        end 
+            
         function onCancelConfirm(this, src, evt) 
              switch this.uipType.val()
                                 
@@ -1405,13 +1465,35 @@ classdef Main < HandlePlus
         end
         
         function onStateScanComplete(this, stUnit)
+            
+            this.msg('onStateScanComplete()');
+            this.dProgress = 0;
             this.saveScanResults(stUnit);
             this.resetUI();
         end
         
         function onStateScanAbort(this, stUnit)
+            
+            
+            this.msg('onStateScanAbort()');
+            
+            this.dProgress = 0;
+            this.stopMotors();
+            
             this.saveScanResults(stUnit, true);
             this.resetUI();
+        end
+        
+        % Stop all potentially moving motors
+        
+        function stopMotors(this)
+            
+            this.msg('stopMotors()');
+            
+            ceNames = fieldnames(this.stHio);
+            for n = 1:length(ceNames)
+                this.stHio.(ceNames{n}).hio.stop();
+            end
         end
         
         %{
@@ -1443,10 +1525,10 @@ classdef Main < HandlePlus
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
             cName = sprintf('%s-Recipe.json', cTimestamp);
             
-            this.checkDir(this.cDirRecipe);
+            this.checkDir(this.cDirScan);
             
             this.cPathRecipe = fullfile(...
-                this.cDirRecipe, ...
+                this.cDirScan, ...
                 cName ...
             );
             
@@ -1489,7 +1571,7 @@ classdef Main < HandlePlus
             end
             
             cPath = fullfile(...
-                this.cDirResult, ...
+                this.cDirScan, ...
                 cName ...
             );
         
@@ -1526,7 +1608,7 @@ classdef Main < HandlePlus
             end
             
             cPath = fullfile(...
-                this.cDirResult, ...
+                this.cDirScan, ...
                 cName ...
             );
                     
@@ -1650,10 +1732,10 @@ classdef Main < HandlePlus
             dValues = linspace(...
                 this.uieStart1.val(), ...
                 this.uieStop1.val(), ...
-                this.uieSteps1.val()...
+                this.uieSteps1.val() + 1 ...
             );
                         
-            ceValues = cell(1, this.uieSteps1.val()); % list of value structures
+            ceValues = cell(1, this.uieSteps1.val() + 1); % list of value structures
             
             for n = 1:length(dValues)                
                 stValue = struct();
@@ -1693,18 +1775,18 @@ classdef Main < HandlePlus
             dValues = linspace(...
                 this.uieStart1.val(), ...
                 this.uieStop1.val(), ...
-                this.uieSteps1.val()...
+                this.uieSteps1.val() + 1 ...
             );
             
             % 2nd dimension values
             dValues2 = linspace(...
                 this.uieStart2.val(), ...
                 this.uieStop2.val(), ...
-                this.uieSteps2.val() ...
+                this.uieSteps2.val() + 1 ...
             );
             
             % Build list of value structures
-            ceValues = cell(1, this.uieSteps1.val() * this.uieSteps2.val());
+            ceValues = cell(1, (this.uieSteps1.val() + 1) * (this.uieSteps2.val() + 1));
             dCount = 1;
             for n = 1:length(dValues)
                 
@@ -1758,6 +1840,17 @@ classdef Main < HandlePlus
             
         end
         
+        function createNewScanDir(this)
+            
+            this.uitxStatus.cVal = 'Creating scan dir ...';
+            
+            cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
+            cName = sprintf('Scan-%s', cTimestamp);
+            
+            this.cDirScan = fullfile(this.cDirSave, cName);
+            this.checkDir(this.cDirScan);
+            
+        end
         
         function startNewScan(this)
             
@@ -1767,6 +1860,7 @@ classdef Main < HandlePlus
             this.lIsScanning = true;
             this.disableScanUI();
             this.resetPlot();
+            this.createNewScanDir();
             
             % Only build and save if not using a user-defined recipe.
             
@@ -1968,7 +2062,7 @@ classdef Main < HandlePlus
                     
                     delete(this.hLines1DIDet);
                     delete(this.hLines1DIZero);
-                                        
+                    
                     this.hLines1DIDet = plot(...
                         this.hAxes1D, ...
                         this.d1DResultParam, this.d1DResultIDet, '.-r', ...
@@ -1979,10 +2073,30 @@ classdef Main < HandlePlus
                         this.d1DResultParam, this.d1DResultIZero, '.-b', ...
                         'MarkerSize', this.dSizeMarker ...
                     );
+                
+                    if this.uitPlotType.lVal
+                        set(this.hAxes1D, 'YScale', 'log');
+                    else
+                        set(this.hAxes1D, 'YScale', 'linear');
+                    end
                     % title(this.hAxes1D, 'Results');
                                                             
                     xlabel(this.hAxes1D, this.devicePlotLabel(this.uipDevice1.val(), stUnit));
-                    ylabel(this.hAxes1D, sprintf('I (%s)', 'uA')); % FIXME
+                    ylabel(this.hAxes1D, sprintf('I (%s)', 'A'));
+                    % xlim(this.hAxes1D, [this.d1DResultParam(1) this.d1DResultParam(end)]);
+                    
+                    dMin = min(this.d1DResultParam);
+                    dMax = max(this.d1DResultParam);
+                    if dMin ~= dMax
+                        xlim(this.hAxes1D, [dMin dMax]);
+                    end
+                    
+                    grid(this.hAxes1D, 'minor');
+                    set(...
+                        this.hAxes1D, ...
+                        'XMinorTick','on', ...
+                        'YMinorTick','on' ...
+                    )
                     % xlim(this.hAxes, [0 max(this.dTime*1000)])
                     % ylim(this.hAxes, [-this.uieVoltsScale.val() this.uieVoltsScale.val()])
                     
@@ -2027,7 +2141,15 @@ classdef Main < HandlePlus
                     );
                     
                     xlabel(this.hAxes2D1, cLabel);
-                    ylabel(this.hAxes2D1, sprintf('I (%s)', 'uA')); % FIXME
+                    ylabel(this.hAxes2D1, sprintf('I (%s)', 'A'));
+                    % xlim(this.hAxes2D1, [this.d1DResultParam(1) this.d1DResultParam(end)]);
+                    
+                    dMin = min(this.d1DResultParam);
+                    dMax = max(this.d1DResultParam);
+                    if dMin ~= dMax
+                        xlim(this.hAxes2D1, [dMin dMax]);
+                    end
+
                     
                     % Draw legend first time
                     
@@ -2389,11 +2511,11 @@ classdef Main < HandlePlus
                     dValues = linspace(...
                         this.uieStart1.val(), ...
                         this.uieStop1.val(), ...
-                        this.uieSteps1.val()...
+                        this.uieSteps1.val() + 1 ...
                     );
                     this.d1DResultParam = dValues;
-                    this.d1DResultIDet = zeros(1, this.uieSteps1.val());    
-                    this.d1DResultIZero = zeros(1, this.uieSteps1.val());
+                    this.d1DResultIDet = zeros(1, this.uieSteps1.val() + 1);    
+                    this.d1DResultIZero = zeros(1, this.uieSteps1.val() + 1);
                     
                 case this.cTypeTwoDevice
                     
@@ -2403,30 +2525,30 @@ classdef Main < HandlePlus
                     dValues = linspace(...
                         this.uieStart1.val(), ...
                         this.uieStop1.val(), ...
-                        this.uieSteps1.val()...
+                        this.uieSteps1.val() + 1 ...
                     );
 
                     % 2nd dimension values
                     dValues2 = linspace(...
                         this.uieStart2.val(), ...
                         this.uieStop2.val(), ...
-                        this.uieSteps2.val() ...
+                        this.uieSteps2.val() + 1 ...
                     );
                 
                     % Initialize storage for the current scan on the 2nd dimension
                     % for the 1D plot on the left
                     
                     this.d1DResultParam = dValues2;
-                    this.d1DResultIDet = zeros(1, this.uieSteps2.val());    
-                    this.d1DResultIZero = zeros(1, this.uieSteps2.val());
+                    this.d1DResultIDet = zeros(1, this.uieSteps2.val() + 1);    
+                    this.d1DResultIZero = zeros(1, this.uieSteps2.val() + 1);
 
                     % Initialize result storage for x, y, z mesh plotting
                     % Each 1D scan is a col of the matrix so the number of rows is
                     % the number of steps of the 2nd dimension. 
                     
                     [this.d2DResultParam1, this.d2DResultParam2] = meshgrid(dValues, dValues2);                               
-                    this.d2DResultIDet = zeros(this.uieSteps2.val(), this.uieSteps1.val());             
-                    this.d2DResultIZero =  zeros(this.uieSteps2.val(), this.uieSteps1.val());
+                    this.d2DResultIDet = zeros(this.uieSteps2.val() + 1, this.uieSteps1.val() + 1);             
+                    this.d2DResultIZero =  zeros(this.uieSteps2.val() + 1, this.uieSteps1.val() + 1);
 
                 case this.cTypeScript
                     
@@ -2485,7 +2607,7 @@ classdef Main < HandlePlus
             [cName, cPath] = uigetfile(...
                 '.json',...
                 'Please choose a script', ...
-                this.cDirRecipe ...
+                this.cDirSave ...
             );
         
             if isequal(cName,0)
@@ -2983,6 +3105,10 @@ classdef Main < HandlePlus
             
             drawnow;
             
+            % this.updatePlot();
+            this.updatePlot(this.getSystemUnits());
+
+            
         end
         
         function buildPanelPicoammeter(this)
@@ -3096,9 +3222,17 @@ classdef Main < HandlePlus
             
         end
         
-        function buildConnectAll(this)
+        function buildPlotType(this)
             
             dLeft = 1200;
+            dTop = 400;
+            
+            this.uitPlotType.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
+        end
+        
+        function buildConnectAll(this)
+            
+            dLeft = 1300;
             dTop = 400;
             
             this.uitStageApi.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
@@ -3110,7 +3244,7 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
             % return
             
             % Temporarily set all Apis to virtual Apis
@@ -3157,6 +3291,20 @@ classdef Main < HandlePlus
             
         end
           
+        function initPlotType(this)
+            
+            this.msg('initPlotType');
+            
+            this.uitPlotType = UIToggle( ...
+                'Linear Y-axis', ...   % (off) not active
+                'Log Y-axis' ...  % (on) active
+            );
+        
+            this.uitPlotType.setTooltip(this.cTooltipPlotTypeLin);
+            addlistener(this.uitPlotType, 'eChange', @this.onPlotTypeChange);
+            
+        end
+        
         function initConnectAll(this)
             
             st1 = struct();
@@ -3346,8 +3494,8 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowRange', true, ...
-                'lShowZero', false, ...
-                'lShowRel', false ...
+                'lShowZero', true, ...
+                'lShowRel', true ...
             ); 
             
             % MaskY
@@ -3367,9 +3515,9 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lShowZero', true, ...
                 'lShowRange', true, ...
-                'lShowRel', false ...
+                'lShowRel', true ...
             );
             
             % MaskZ
@@ -3389,9 +3537,9 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lShowZero', true, ...
                 'lShowRange', true, ...
-                'lShowRel', false ...
+                'lShowRel', true ...
             );
             
             % MaskT
@@ -3411,9 +3559,9 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lShowZero', true, ...
                 'lShowRange', true, ...
-                'lShowRel', false ...
+                'lShowRel', true ...
             );
             
             % DetX
@@ -3433,9 +3581,9 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lShowZero', true, ...
                 'lShowRange', true, ...
-                'lShowRel', false ...
+                'lShowRel', true ...
             );
             
             % DetT
@@ -3455,9 +3603,9 @@ classdef Main < HandlePlus
                 'lShowInitButton', true, ...
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
-                'lShowZero', false, ...
+                'lShowZero', true, ...
                 'lShowRange', true, ...
-                'lShowRel', false ...
+                'lShowRel', true ...
             );
             
             % FilterY
@@ -3478,10 +3626,15 @@ classdef Main < HandlePlus
                 'lShowInitState', false, ...
                 'lShowLabels', false, ...
                 'lShowRange', true, ...
-                'lShowZero', false, ...
-                'lShowRel', false ...
+                'lShowZero', true, ...
+                'lShowRel', true ...
             ); 
 
+            
+        end
+        
+        function initHioStruct(this)
+            
             mono = struct();
             % mono.cName = 'mono';
             mono.hio = this.hioMono;
@@ -3560,6 +3713,7 @@ classdef Main < HandlePlus
             this.stHio.(this.cFieldDetX) = detX;
             this.stHio.(this.cFieldDetT) = detT;
             this.stHio.(this.cFieldFilterY) = filterY;
+            
         end
         
         function initHardwareUIKeithley(this)
@@ -3712,12 +3866,11 @@ classdef Main < HandlePlus
             [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));            
 
             this.cDirApp = fullfile(cDirThis, '..', '..', '..', '..');
-            this.cDirRecipe = this.path2canonical(fullfile(this.cDirApp, 'scans'));
-            this.cDirResult = this.path2canonical(fullfile(this.cDirApp, 'scans'));
+            this.cDirSave = this.path2canonical(fullfile(this.cDirApp, 'scans'));
             
             this.initSettings();
                        
-            this.cDirSave = fullfile( ...
+            this.cDirSaveState = fullfile( ...
                 this.cDirApp, ...
                 'save', ...
                 'main' ...
@@ -3725,10 +3878,13 @@ classdef Main < HandlePlus
         
             
             this.initConnectAll();
+            this.initPlotType();
             
             this.initHardwareUIMono();
             this.initHardwareUIStages();
             this.initHardwareUIKeithley();
+            this.initHioStruct();
+            
             % this.initHardwareUI();
             
             this.initDevices();
@@ -3899,10 +4055,19 @@ classdef Main < HandlePlus
             this.updateUnit2();
             
             addlistener(this.uibSwap, 'ePress', @this.onSwapPress);
-            addlistener(this.uibChooseDir, 'ePress', @this.onChooseDirPress);
+            addlistener(this.uibChooseDir, 'ePress', @this.onChooseSaveDirPress);
             
         end
         
+        function onPlotTypeChange(this, src, evt)
+           if src.lVal
+               src.setTooltip(this.cTooltipPlotTypeLog);
+           else
+               src.setTooltip(this.cTooltipPlotTypeLin);
+           end
+           
+           this.updatePlot(this.getSystemUnits());
+        end
         
         function onStageApiChange(this, src, evt)
             if src.lVal
