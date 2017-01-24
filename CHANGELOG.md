@@ -1,3 +1,12 @@
+# 1.0.0-alpha.11
+
+### sins.main.Main
+- Grid and minor grid now set when building the axes.  Fixed the problem of them toggling on/off on each redraw.
+- Grid and minor grid now also work on the 2D scan 1D plot
+- All deviceUi now save/load their unit, zero, and abs/rel toggle state.  This was a change within the MIC library but also noted here.
+- launch.m now loads the mono DLLs
+- New panel "plot tools" for the y-axis scale toggle and active display of x, y location when hovering over the 1D axes for 1-axis and 2-axis scan types
+
 # 1.0.0-alpha.10
 
 ### sins.main.Main

@@ -53,7 +53,7 @@ classdef Main < HandlePlus
         dColorBgFigure = [200 200 200]./255;
         
         dWidth = 1500
-        dHeight = 450 % 650;
+        dHeight = 520 % 650;
         
         dWidthPanelBorder = 0;
         dWidthPad = 10;
@@ -80,6 +80,9 @@ classdef Main < HandlePlus
         
         dWidthPanelMono = 670;
         dHeightPanelMono = 70;
+        
+        
+        dHeightPanelPlotTools = 34;
         
         dWidthPanelPicoammeter = 300;
         dHeightPanelPicoammeter = 70; % 350;
@@ -265,6 +268,8 @@ classdef Main < HandlePlus
         uitxUnit1
         uitxUnit2
         
+        uitxPlotX
+        uitxPlotY
         
         % Deprecated
         stMoveRequired      % struct of logicals that is used to store which 
@@ -309,6 +314,7 @@ classdef Main < HandlePlus
         hPanelMono
         hPanelScan
         hPanelPicoammeter
+        hPanelPlotTools
         
         ticId
         ticIdStart
@@ -717,8 +723,8 @@ classdef Main < HandlePlus
                         this.dWidth ...
                         this.dHeight ...
                      ],... % left bottom width height
-                    'Resize', 'off', ...
-                    'WindowButtonMotionFcn', @this.onMouseMotion, ...
+                    'Resize', 'off', ... 
+                    'WindowButtonMotionFcn', @this.onWindowMouseMotion, ...
                     'HandleVisibility', 'on', ... % lets close all close the figure
                     'Visible', 'on' ...
                     );
@@ -742,8 +748,9 @@ classdef Main < HandlePlus
             this.buildPanelSettings();
             this.buildPanelScan();
             this.buildPanelResult(); % builds two panels
+            this.buildPanelPlotTools();
             this.buildConnectAll();
-            this.buildPlotType();
+           
         
         end
         
@@ -895,53 +902,8 @@ classdef Main < HandlePlus
             this.keithley.turnOff();
         end
         
-        % Convert a relative directory path into a canonical path
-        % i.e., C:\A\B\..\C becomes C:\A\C.  Uses java io interface
         
-        function c = path2canonical(this, cPath)
-           jFile = java.io.File(cPath);
-           c = char(jFile.getCanonicalPath);
-        end
         
-        % @param {cell of struct 1xm} ce - data, i.e.,
-        % ce{1}.car = 'ferrari'
-        % ce{2}.car = 'tesla'
-        % ce{1}.location = 'San Francisco'
-        % ce{2}.location = 'Los Angeles'
-        % @return {struct array 1xm} st
-        % st(1).car = 'ferrari'
-        % st(2).car = 'tesla'
-        
-        function st = cellOfSt2structAr(this, ce)
-            
-            % {double 1xm} - list of indexes of ce that are not empty
-            % https://www.mathworks.com/matlabcentral/answers/42283-index-non-empty-cells-in-cell-array
-            dIndex = find(~cellfun(@isempty, ce));
-            
-            if isempty(dIndex)
-                st = struct();
-                return;
-            end
-            % {cell of struct 1xm} - subset of ce that contains non-empty
-            % structures
-            ceSub = ce(dIndex);
-            
-            % Initialize 1 x length(ceSub) list of structures.  Each structure
-            % in the list is a clone of ce{1} so it has correct properties.
-           
-            st = repmat(ceSub{1}, length(ceSub), 1);
-            
-            % Overwrite each element of st with the corresponding
-            % element of the ceSub
-            
-            for n = 1:length(ceSub)
-                if isempty(ceSub{n})
-                    continue
-                end
-                st(n) = ceSub{n};
-            end
-            
-        end
                
     end
     
@@ -1151,7 +1113,6 @@ classdef Main < HandlePlus
 
             if exist(this.file(), 'file') == 2
                 load(this.file()); % populates variable s in local workspace
-                s
                 this.loadClassInstance(s); 
             end
             
@@ -1184,33 +1145,7 @@ classdef Main < HandlePlus
     
     methods (Access = private)
         
-        function cTruncated = truncate(this, cText, dLength, lFront)
-        %ABBREVIATE truncate a string to the number of specified characters
-        %   @param {char 1xm} cText - the text string
-        %   @param {double 1x1} dLength - desired length
-        %   @param {logical 1x1} lFront - true if you want beginning cut,
-        %       false if you want end cut
-        %   @return {char 1xm} - truncated text string
         
-            if nargin < 3
-                dLength = 30;
-            end
-            
-            if nargin < 4
-                lFront = false;
-            end
-            
-            if length(cText) > dLength
-                if lFront
-                    cTruncated = sprintf('...%s', cText(end - dLength : end));
-                else
-                    cTruncated = sprintf('%s...', cText(1 : dLength));
-                end
-            else
-                cTruncated = cText;
-            end
-            
-        end
         
         function onChooseSaveDirPress(this, src, evt)
            
@@ -1223,7 +1158,7 @@ classdef Main < HandlePlus
                return; % User clicked "cancel"
             end
             
-            this.cDirSave = this.path2canonical(cName);
+            this.cDirSave = MicUtils.path2canonical(cName);
             this.updateDirLabel();            
         end
         
@@ -1232,7 +1167,7 @@ classdef Main < HandlePlus
                 'The directory where scan recipe/result files are saved: %s', ...
                 this.cDirSave ...
             ));
-            this.uitxDir.cVal = this.truncate(this.cDirSave, 55, true);
+            this.uitxDir.cVal = MicUtils.truncate(this.cDirSave, 55, true);
         end
         
         
@@ -1259,31 +1194,46 @@ classdef Main < HandlePlus
         end
         
         function onHioMonoTurnOff(this, src, evt)
+            
+            
+ 
+            
             this.hioGrating.turnOff();
         end
         
-        function onMouseMotion(this, src, evt)
+        function updateAxesCrosshair(this)
             
-           return;
-           this.msg('onMouseMotion()');
+           if ~ishandle(this.hAxes1D)
+               return;
+           end
+           if ~ishandle(this.hFigure)
+               return;
+           end
            
-           % If the mouse is inside the axes, turn the cursor into a
-           % crosshair, else make sure it is an arrow
-           
+            
            dCursor = get(this.hFigure, 'CurrentPoint');     % [left bottom]
            
            switch (this.uipType.val())
                case this.cTypeOneDevice
                    dAxes = get(this.hAxes1D, 'Position');             % [left bottom width height]
+                    dPoint = get(this.hAxes1D, 'CurrentPoint');
                otherwise
-                   dAxes = get(this.hAxes1D, 'Position');  
+                   dAxes = get(this.hAxes2D1, 'Position'); 
+                   dPoint = get(this.hAxes2D1, 'CurrentPoint');
+
+           end
+           
+           dPositionPanel = get(this.hPanelResult1D, 'Position');
+           
+           if isempty(dAxes)
+               return;
            end
            
            dCursorLeft =    dCursor(1);
            dCursorBottom =  dCursor(2);
            
-           dAxesLeft =      dAxes(1);
-           dAxesBottom =    dAxes(2);
+           dAxesLeft =      dAxes(1) + dPositionPanel(1);
+           dAxesBottom =    dAxes(2) + dPositionPanel(2);
            dAxesWidth =     dAxes(3);
            dAxesHeight =    dAxes(4);
            
@@ -1291,23 +1241,35 @@ classdef Main < HandlePlus
                 dCursorLeft < dAxesLeft + dAxesWidth && ...
                 dCursorBottom > dAxesBottom && ...
                 dCursorBottom <= dAxesBottom + dAxesHeight
-            
-                
                 if strcmp(get(this.hFigure, 'Pointer'), 'arrow')
                     set(this.hFigure, 'Pointer', 'crosshair')
                 end
-                
-            
+                this.uitxPlotX.cVal = sprintf('x: %1.3e', dPoint(1, 1));
+                this.uitxPlotY.cVal = sprintf('y: %1.3e', dPoint(1, 2));
            else
-           
                 if ~strcmp(get(this.hFigure, 'Pointer'), 'arrow')
                     set(this.hFigure, 'Pointer', 'arrow')
                 end
-                
            end
+        end
+        
+        function onWindowMouseMotion(this, src, evt)
+           
+           this.msg('onWindowMouseMotion()');
+           this.updateAxesCrosshair();
+           % If the mouse is inside the axes, turn the cursor into a
+           % crosshair, else make sure it is an arrow
+           
+          
  
         end 
             
+        function onAxesButtonDown(this, src, evt)
+            this.msg('onAxesButtonDown');
+            src.CurrentPoint
+            
+        end
+        
         function onCancelConfirm(this, src, evt) 
              switch this.uipType.val()
                                 
@@ -1612,7 +1574,7 @@ classdef Main < HandlePlus
                 cName ...
             );
                     
-            stResult = this.cellOfSt2structAr(this.ceValues);
+            stResult = MicUtils.cellOfSt2structAr(this.ceValues);
             tableResult = struct2table(stResult);
             writetable(tableResult, cPath);
 
@@ -2074,6 +2036,9 @@ classdef Main < HandlePlus
                         'MarkerSize', this.dSizeMarker ...
                     );
                 
+                    set(this.hLines1DIDet, 'HitTest','off');
+                    set(this.hLines1DIZero, 'HitTest','off');
+                
                     if this.uitPlotType.lVal
                         set(this.hAxes1D, 'YScale', 'log');
                     else
@@ -2091,12 +2056,14 @@ classdef Main < HandlePlus
                         xlim(this.hAxes1D, [dMin dMax]);
                     end
                     
+                    %{
                     grid(this.hAxes1D, 'minor');
                     set(...
                         this.hAxes1D, ...
                         'XMinorTick','on', ...
                         'YMinorTick','on' ...
                     )
+                    %}
                     % xlim(this.hAxes, [0 max(this.dTime*1000)])
                     % ylim(this.hAxes, [-this.uieVoltsScale.val() this.uieVoltsScale.val()])
                     
@@ -2636,7 +2603,7 @@ classdef Main < HandlePlus
             % This is the only place in the code that uitxRecipe is set
             
             this.uitxRecipe.setTooltip(this.cPathRecipe);
-            this.uitxRecipe.cVal = this.truncate(this.cPathRecipe, 40, true);
+            this.uitxRecipe.cVal = MicUtils.truncate(this.cPathRecipe, 40, true);
             
             % Want to show the open button if 
             this.uibOpenRecipe.show();
@@ -3014,6 +2981,55 @@ classdef Main < HandlePlus
 
         end
         
+        function buildPanelPlotTools(this)
+            
+            dColorBg = [1 1 1];
+            dColorBgText = [1 1 1];
+            
+            % 'Title', 'Results (1D Scan)',...
+            % 'BackgroundColor', dColorBg, ...
+
+            dLeft = this.dWidthPad;
+            dHeightTop = this.dHeightScan + this.dHeightSettings + + 20 + this.dHeightResult;
+            dWidthPanel = this.dWidthScan;
+            this.hPanelPlotTools =  uipanel(...
+                'Parent', this.hFigure,...
+                'Units', 'pixels',...
+                'Clipping', 'on',...
+                'BorderWidth', this.dWidthPanelBorder, ...
+                'BackgroundColor', dColorBg, ...
+                'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightPanelPlotTools], this.hFigure) ...
+            );
+        
+            dLeft = 10;
+            dTop = 0;
+            dWidth = 120;
+            dPad = 10;
+            
+            this.uitPlotType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, this.dWidthBtn);
+            dLeft = dLeft + dWidth + dPad;
+            
+            dTop = 4;
+            this.uitxPlotX.build(...
+                this.hPanelPlotTools, ...
+                dLeft, ...
+                dTop, ...
+                dWidth, ...
+                16 ...
+            );
+            this.uitxPlotX.setBackgroundColor(dColorBgText);
+        
+            dLeft = dLeft + dWidth + dPad;
+            this.uitxPlotY.build(...
+                this.hPanelPlotTools, ...
+                dLeft, ...
+                dTop, ...
+                dWidth, ...
+                16 ...
+            );
+            this.uitxPlotY.setBackgroundColor(dColorBgText);
+        end
+        
         
         function buildPanelResult(this)
             
@@ -3066,9 +3082,17 @@ classdef Main < HandlePlus
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
                 'FontSize', this.dSizeFont, ...
-                'HandleVisibility','on'...
+                'HandleVisibility', 'on', ...
+                'XMinorTick','on', ...
+                'YMinorTick','on', ...
+                'XMinorGrid','on', ...
+                'YMinorGrid','on', ...
+                'XGrid','on', ...
+                'YGrid','on', ... 
+                'NextPlot', 'add', ... % Important.  Look this up in help makes it so 
+                'ButtonDownFcn', 'disp(''Axes click!'')' ...
             ); 
-            hold(this.hAxes1D, 'on');
+            % hold(this.hAxes1D, 'on');
         
             % 2D panel and axes
             
@@ -3083,6 +3107,12 @@ classdef Main < HandlePlus
                 'XColor', [0 0 0],...
                 'YColor', [0 0 0],...
                 'FontSize', this.dSizeFont, ...
+                'XMinorTick','on', ...
+                'YMinorTick','on', ...
+                'XMinorGrid','on', ...
+                'YMinorGrid','on', ...
+                'XGrid','on', ...
+                'YGrid','on', ...
                 'HandleVisibility','on'...
             ); 
             hold(this.hAxes2D1, 'on');
@@ -3222,13 +3252,7 @@ classdef Main < HandlePlus
             
         end
         
-        function buildPlotType(this)
-            
-            dLeft = 1200;
-            dTop = 400;
-            
-            this.uitPlotType.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
-        end
+
         
         function buildConnectAll(this)
             
@@ -3244,8 +3268,8 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            % return
+            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            return
             
             % Temporarily set all Apis to virtual Apis
             
@@ -3291,9 +3315,12 @@ classdef Main < HandlePlus
             
         end
           
-        function initPlotType(this)
+        function initPlotTools(this)
             
-            this.msg('initPlotType');
+            this.msg('initPlotTools');
+            
+            this.uitxPlotX = UIText('x: ...');
+            this.uitxPlotY = UIText('y: ...');
             
             this.uitPlotType = UIToggle( ...
                 'Linear Y-axis', ...   % (off) not active
@@ -3866,7 +3893,7 @@ classdef Main < HandlePlus
             [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));            
 
             this.cDirApp = fullfile(cDirThis, '..', '..', '..', '..');
-            this.cDirSave = this.path2canonical(fullfile(this.cDirApp, 'scans'));
+            this.cDirSave = MicUtils.path2canonical(fullfile(this.cDirApp, 'scans'));
             
             this.initSettings();
                        
@@ -3878,7 +3905,7 @@ classdef Main < HandlePlus
         
             
             this.initConnectAll();
-            this.initPlotType();
+            this.initPlotTools();
             
             this.initHardwareUIMono();
             this.initHardwareUIStages();

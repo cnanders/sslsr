@@ -15,7 +15,7 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
     properties (Access = private)
         
         % {char 1xm} name of the library
-        cLib = 'SINS_LV'
+        cLib = 'EUV_LV'
         
         % {char 1xm} name of property we are retreiving: 
         % this.cPropPhotonWav, this.cPropPhotonEnergy, this.cPropGrating

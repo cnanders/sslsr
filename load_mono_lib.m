@@ -1,57 +1,28 @@
-
 [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));
 
 % App root
 cDirApp = cDirThis;
 
-% Add tests
-addpath(genpath(fullfile(cDirApp, 'tests')));
-
-% Add mic
-addpath(genpath(fullfile(cDirApp, 'lib', 'mic')));
-
-% Add sins package (by adding its parent dir)
-addpath(genpath(fullfile(cDirApp, 'pkg', 'sins')));
-
-% Add jar
-cPathJar = fullfile(...
-    cDirApp, ...
-    'jar', ...
-    'jdk7', ...
-    'Sins2Instruments.jar' ...
-);
-javaaddpath(cPathJar);
-
 % Add EUV dll files to path
-
 cPathMonoLibs = fullfile(...
     cDirApp, ...
     'dll', ...
     'NUS_Mono' ...
 );
+addpath(genpath(cPathMonoLibs));
 
-% Hack to load the DLLs.  CD into the directory, call the load script, then
-% CD back out
-cd(cPathMonoLibs);
-EUV_LV_load_demo2
-cd(cDirThis);
-
-%{
 % Load EUV_LV DLL
 cPathMonoDll = fullfile(...
-    cDirApp, ...
-    'dll', ...
-    'NUS_Mono', ...
+    cPathMonoLibs, ...
     'EUV_LV.dll' ...
-)
+);
 
 cPathMonoHeader = fullfile(...
-    cDirApp, ...
-    'dll', ...
-    'NUS_Mono', ...
+    cPathMonoLibs, ...
     'EUV_LV_matlab.h' ...
-)
+);
 
+return
 
 loadlibrary(cPathMonoDll, cPathMonoHeader);
 libfunctions('EUV_LV','-full'); %  checking to make sure functions go loaded properly
@@ -61,10 +32,7 @@ libfunctions('EUV_LV','-full'); %  checking to make sure functions go loaded pro
 p=int32(0); % explicitly initi variable out of an abundence of caution
 b=int32(0);
 [a,b]=calllib('EUV_LV','CheckEnergyOK',p)
-%}
-purge;
 
-main = sins.main.Main();
-main.build();
+
 
 
