@@ -17,6 +17,8 @@ classdef Main < HandlePlus
         dHeightButton = 24;
         dHeightText = 24;
         
+        cNameLoadLockRecipe = 'load-lock.json';
+        
         cDeviceMono = 'wav';
         cDeviceGrating = 'grating';
         cDeviceMaskX = 'mask x';
@@ -53,7 +55,7 @@ classdef Main < HandlePlus
         dColorBgFigure = [200 200 200]./255;
         
         dWidth = 1500
-        dHeight = 520 % 650;
+        dHeight = 485 % 650;
         
         dWidthPanelBorder = 0;
         dWidthPad = 10;
@@ -75,10 +77,10 @@ classdef Main < HandlePlus
         dWidthDir = 350
         dWidthEditSep = 5
         
-        dWidthPanelStages = 670
+        dWidthPanelStages = 675
         dHeightPanelStages = 250
         
-        dWidthPanelMono = 670;
+        dWidthPanelMono = 675;
         dHeightPanelMono = 70;
         
         
@@ -270,6 +272,7 @@ classdef Main < HandlePlus
         
         uitxPlotX
         uitxPlotY
+        uitxPlotTypeLabel
         
         % Deprecated
         stMoveRequired      % struct of logicals that is used to store which 
@@ -378,6 +381,7 @@ classdef Main < HandlePlus
         
         
         uibLoadLock
+        uibLoadLockSave
         
     end
     
@@ -467,6 +471,54 @@ classdef Main < HandlePlus
                 else
                     this.stHio.(ceProps{n}).lMoveRequired = true;
                     this.stHio.(ceProps{n}).hio.setDestCalDisplay(dValue, cUnit);
+                    this.stHio.(ceProps{n}).hio.moveToDest();
+                    this.stHio.(ceProps{n}).lMoveIssued = true;
+                end
+                
+            end
+                         
+            
+        end
+        
+         % See onStateScanSetState
+         % This is a special case where we do setDestRaw() based on raw
+         % units
+         
+         function onStateScanSetStateLL(this, stUnit, stValue)
+        
+            this.ticId = tic;
+            
+            % Reset lMoveRequired and lMoveIssued for every prop
+            
+            ceNames = fieldnames(this.stHio);
+            
+            for n = 1:length(ceNames)
+                this.stHio.(ceNames{n}).lMoveRequired = false;
+                this.stHio.(ceNames{n}).lMoveIssued = false;
+            end
+            
+            % Loop through all props that are being set and command them
+            
+            ceProps = fieldnames(stValue);
+            for n = 1:length(ceProps)
+                
+                cUnit = stUnit.(ceProps{n}); 
+                dValue = stValue.(ceProps{n});
+                
+                if strcmp(ceProps{n}, 'delay')
+                    % Special case
+                    cStatus = this.uitxStatus.cVal;
+                    this.uitxStatus.cVal = sprintf('Pausing %1.2f s', dValue);
+                    drawnow;
+                    
+                    pause(dValue);
+                    
+                    this.uitxStatus.cVal = cStatus;
+                else
+                    this.stHio.(ceProps{n}).lMoveRequired = true;
+                    % IMPORTANT. LL does not depend on units and always
+                    % uses raw units.  The recipe also uses raw units.
+                    this.stHio.(ceProps{n}).hio.setDestRaw(dValue); 
                     this.stHio.(ceProps{n}).hio.moveToDest();
                     this.stHio.(ceProps{n}).lMoveIssued = true;
                 end
@@ -751,7 +803,14 @@ classdef Main < HandlePlus
             this.buildPanelPlotTools();
             this.buildConnectAll();
            
-        
+            % Make sure the correct result panel is showing and update the
+            % plot
+            
+            this.msg('build() calling onTypeChange()');
+            this.onTypeChange([], []);
+            %this.msg('build() calling updatePlot()');
+            %this.updatePlot(this.getSystemUnits());
+
         end
         
         function deleteDevices(this)
@@ -902,6 +961,8 @@ classdef Main < HandlePlus
             this.keithley.turnOff();
         end
         
+       
+        
         
         
                
@@ -909,6 +970,16 @@ classdef Main < HandlePlus
     
     methods (Access = protected)
             
+         function load(this)
+                        
+            this.msg('load()');
+
+            if exist(this.file(), 'file') == 2
+                load(this.file()); % populates variable s in local workspace
+                this.loadClassInstance(s); 
+            end
+            
+         end
         
         function onClose(this, src, evt)
             this.msg('onClose()');
@@ -1107,16 +1178,7 @@ classdef Main < HandlePlus
         end
         
         
-        function load(this)
-                        
-            this.msg('load()');
-
-            if exist(this.file(), 'file') == 2
-                load(this.file()); % populates variable s in local workspace
-                this.loadClassInstance(s); 
-            end
-            
-        end
+        
         
         function save(this)
             
@@ -1203,24 +1265,30 @@ classdef Main < HandlePlus
         
         function updateAxesCrosshair(this)
             
-           if ~ishandle(this.hAxes1D)
-               return;
-           end
+           % If the mouse is inside the axes, turn the cursor into a
+           % crosshair, else make sure it is an arrow
+           
            if ~ishandle(this.hFigure)
                return;
            end
            
-            
+           if ~ishandle(this.hAxes1D)
+               return;
+           end
+           
+           if ~ishandle(this.hAxes2D1)
+               return;
+           end
+    
            dCursor = get(this.hFigure, 'CurrentPoint');     % [left bottom]
            
            switch (this.uipType.val())
                case this.cTypeOneDevice
                    dAxes = get(this.hAxes1D, 'Position');             % [left bottom width height]
-                    dPoint = get(this.hAxes1D, 'CurrentPoint');
+                   dPoint = get(this.hAxes1D, 'CurrentPoint');
                otherwise
                    dAxes = get(this.hAxes2D1, 'Position'); 
                    dPoint = get(this.hAxes2D1, 'CurrentPoint');
-
            end
            
            dPositionPanel = get(this.hPanelResult1D, 'Position');
@@ -1232,33 +1300,38 @@ classdef Main < HandlePlus
            dCursorLeft =    dCursor(1);
            dCursorBottom =  dCursor(2);
            
+           % Need to include left/bottom of container panel to get correct
+           % left / bottom of the Axes since its Position is relative to
+           % its parent
+           
            dAxesLeft =      dAxes(1) + dPositionPanel(1);
            dAxesBottom =    dAxes(2) + dPositionPanel(2);
            dAxesWidth =     dAxes(3);
            dAxesHeight =    dAxes(4);
            
-           if   dCursorLeft > dAxesLeft && ...
-                dCursorLeft < dAxesLeft + dAxesWidth && ...
-                dCursorBottom > dAxesBottom && ...
+           if   dCursorLeft >= dAxesLeft && ...
+                dCursorLeft <= dAxesLeft + dAxesWidth && ...
+                dCursorBottom >= dAxesBottom && ...
                 dCursorBottom <= dAxesBottom + dAxesHeight
                 if strcmp(get(this.hFigure, 'Pointer'), 'arrow')
                     set(this.hFigure, 'Pointer', 'crosshair')
                 end
-                this.uitxPlotX.cVal = sprintf('x: %1.3e', dPoint(1, 1));
+                this.uitxPlotX.cVal = sprintf('x: %1.3f', dPoint(1, 1));
                 this.uitxPlotY.cVal = sprintf('y: %1.3e', dPoint(1, 2));
            else
                 if ~strcmp(get(this.hFigure, 'Pointer'), 'arrow')
                     set(this.hFigure, 'Pointer', 'arrow')
                 end
+                this.uitxPlotX.cVal = 'x: ...';
+                this.uitxPlotY.cVal = 'y: ...';
            end
         end
         
         function onWindowMouseMotion(this, src, evt)
            
-           this.msg('onWindowMouseMotion()');
+           % this.msg('onWindowMouseMotion()');
            this.updateAxesCrosshair();
-           % If the mouse is inside the axes, turn the cursor into a
-           % crosshair, else make sure it is an arrow
+           
            
           
  
@@ -1473,6 +1546,25 @@ classdef Main < HandlePlus
             
         end
         %}
+        
+        
+        function saveLoadLockRecipe(this, stRecipe)
+            
+            this.msg('saveLoadLockRecipe()');
+            this.uitxStatus.cVal = 'Writing LL recipe ...';
+
+            cPathRecipe = this.getLoadLockRecipePath();
+        
+            stOptions = struct();
+            stOptions.FileName = cPathRecipe;
+            stOptions.Compact = 0; 
+            
+            savejson('', stRecipe, stOptions);            
+            this.msg('Saved LL recipe: %s', cPathRecipe);
+            
+            this.uitxStatus.cVal = 'Saved LL recipe.';
+            
+        end
         
         function saveScanRecipe(this, stRecipe)
         %SAVESCANRECIPE Save a recipe struct to JSON and update
@@ -2036,8 +2128,8 @@ classdef Main < HandlePlus
                         'MarkerSize', this.dSizeMarker ...
                     );
                 
-                    set(this.hLines1DIDet, 'HitTest','off');
-                    set(this.hLines1DIZero, 'HitTest','off');
+                    % set(this.hLines1DIDet, 'HitTest','off');
+                    % set(this.hLines1DIZero, 'HitTest','off');
                 
                     if this.uitPlotType.lVal
                         set(this.hAxes1D, 'YScale', 'log');
@@ -2098,6 +2190,12 @@ classdef Main < HandlePlus
                         'MarkerSize', this.dSizeMarker ...
                     );
                 
+                    if this.uitPlotType.lVal
+                        set(this.hAxes2D1, 'YScale', 'log');
+                    else
+                        set(this.hAxes2D1, 'YScale', 'linear');
+                    end
+                
                     
                     
         
@@ -2121,6 +2219,7 @@ classdef Main < HandlePlus
                     % Draw legend first time
                     
                     if isempty(this.hLegend2D1)
+                        this.msg('updatePlot() building legend for axes2D1');
                     	this.hLegend2D1 = legend(this.hAxes2D1, 'Idet', 'Izero');
                         % this.hLegend2D1.FontSize = this.dSizeFont;
                         set(this.hLegend2D1, 'FontSize', this.dSizeFont);
@@ -2142,6 +2241,12 @@ classdef Main < HandlePlus
                         this.d2DResultParam1, this.d2DResultParam2, this.d2DResultIDet, '.-', ...
                         'MarkerSize', this.dSizeMarker ...
                     );
+                
+                    if this.uitPlotType.lVal
+                        set(this.hAxes2D2, 'ZScale', 'log');
+                    else
+                        set(this.hAxes2D2, 'ZScale', 'linear');
+                    end
                 
                     xlabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice1.val(), stUnit)); 
                     ylabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice2.val(), stUnit));  
@@ -3001,15 +3106,31 @@ classdef Main < HandlePlus
                 'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightPanelPlotTools], this.hFigure) ...
             );
         
-            dLeft = 10;
+            dLeft = 55;
             dTop = 0;
-            dWidth = 120;
-            dPad = 10;
             
+            dPad = 10;
+            dWidth = 40;
+            this.uitxPlotTypeLabel.build(...
+                this.hPanelPlotTools, ...
+                dLeft, ...
+                dTop + 4, ...
+                dWidth, ...
+                16 ...
+            );
+            this.uitxPlotTypeLabel.setBackgroundColor(dColorBgText);
+            
+            dLeft = dLeft + dWidth;
+        
+            dWidth = 40;
             this.uitPlotType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, this.dWidthBtn);
             dLeft = dLeft + dWidth + dPad;
             
+            % x, y active value
+            
+            dLeft = dLeft + 50;
             dTop = 4;
+            dWidth = 90;   
             this.uitxPlotX.build(...
                 this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3245,8 +3366,20 @@ classdef Main < HandlePlus
             this.hioFilterY.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio);
             dN = dN + 1;
             
-            this.uibLoadLock.build(this.hPanelStages, dLeft, dTop + dN * this.dHeightHio + 5, 120, this.dHeightButton) 
-            
+            dWidth = 120;
+            this.uibLoadLock.build(this.hPanelStages, ...
+                dLeft, ...
+                dTop + dN * this.dHeightHio + 5, ...
+                dWidth, ...
+                this.dHeightButton ...
+            );
+        
+            this.uibLoadLockSave.build(this.hPanelStages, ...
+                dLeft + dWidth + 10, ...
+                dTop + dN * this.dHeightHio + 5, ...
+                dWidth, ...
+                this.dHeightButton ...
+            ); 
             
             
             
@@ -3256,8 +3389,8 @@ classdef Main < HandlePlus
         
         function buildConnectAll(this)
             
-            dLeft = 1300;
-            dTop = 400;
+            dLeft = this.dWidthScan + 20;
+            dTop = 430;
             
             this.uitStageApi.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
             
@@ -3319,12 +3452,13 @@ classdef Main < HandlePlus
             
             this.msg('initPlotTools');
             
+            this.uitxPlotTypeLabel = UIText('y-axis:');
             this.uitxPlotX = UIText('x: ...');
             this.uitxPlotY = UIText('y: ...');
             
             this.uitPlotType = UIToggle( ...
-                'Linear Y-axis', ...   % (off) not active
-                'Log Y-axis' ...  % (on) active
+                'Lin', ...   % (off) not active
+                'Log' ...  % (on) active
             );
         
             this.uitPlotType.setTooltip(this.cTooltipPlotTypeLin);
@@ -3920,6 +4054,9 @@ classdef Main < HandlePlus
             this.uibLoadLock = UIButton('Sample -> LL');
             addlistener(this.uibLoadLock, 'ePress', @this.onLoadLockPress);
             
+            this.uibLoadLockSave = UIButton('Save LL Pos');
+            addlistener(this.uibLoadLockSave, 'eChange', @this.onLoadLockSavePress);
+            
             this.uibChooseRecipe = UIButton('Choose Script');
             this.uibOpenRecipe = UIButton('Open Script');
             
@@ -4107,16 +4244,45 @@ classdef Main < HandlePlus
             end            
         end
         
+        function onLoadLockSavePress(this, src, evt);
+            this.msg('onLoadLockSavePress()'); 
+            stRecipe = this.buildRecipeLoadLock();
+            this.saveLoadLockRecipe(stRecipe);
+            
+        end
+        
+        % @return {char 1xm} - full path to load lock recipe file
+        function c = getLoadLockRecipePath(this)
+            
+            this.msg('getLoadLockRecipePath()');
+            
+            cDir = fullfile(...
+                this.cDirApp, ...
+                'load-lock' ...
+            );
+            cDir = MicUtils.path2canonical(cDir);
+            this.checkDir(cDir);
+            
+            c = fullfile(...
+                cDir, ...
+                'load-lock.json' ...
+            );
+        end
         
         function onLoadLockPress(this, src, evt)
-            
-            stRecipe = this.buildLoadLockRecipe();
+            this.startLoadLockScan();
+        end
+        
+        function startLoadLockScan(this)
+                        
+            % Load the load-lock.json recipe
+            stRecipe = this.buildRecipeFromFile(this.getLoadLockRecipePath());
             
             % Create new StateScan and start it
             this.scan = StateScan(...
                 this.clock, ...
                 stRecipe, ...
-                @this.onStateScanSetState, ...
+                @this.onStateScanSetStateLL, ...
                 @this.onStateScanIsAtState, ...
                 @this.onStateScanAcquireLL, ... % doesn't do anything
                 @this.onStateScanIsAcquired, ... % returns true
@@ -4130,20 +4296,29 @@ classdef Main < HandlePlus
             
         end
         
-        function stRecipe = buildLoadLockRecipe(this)
+        function stRecipe = buildRecipeLoadLock(this)
             
             
             % Build recipe structure.  Temporarily assume want to move
             % MaskT and DetT, but later on can make what it needs to be.
+            % Special case where the recipe stores raw units without any
+            % offset as set in the UI.  The setState during this scan will
+            % have to be different and set the state using setValRaw()
+            % instead of setValCalDisplay()
                         
             stUnit = struct();            
+            stUnit.(this.cFieldMaskX) = this.stHio.(this.cFieldMaskX).hio.unit().name;
+            stUnit.(this.cFieldMaskY) = this.stHio.(this.cFieldMaskY).hio.unit().name;
+            stUnit.(this.cFieldMaskZ) = this.stHio.(this.cFieldMaskZ).hio.unit().name;
             stUnit.(this.cFieldMaskT) = this.stHio.(this.cFieldMaskT).hio.unit().name;
-            stUnit.(this.cFieldDetT) = this.stHio.(this.cFieldDetT).hio.unit().name;
             
             % Value structure of LL state
             stValue = struct();
-            stValue.(this.cFieldMaskT) = 5;
-            stValue.(this.cFieldDetT) = 10;
+            stValue.(this.cFieldMaskX) = this.hioMaskX.valRaw();
+            stValue.(this.cFieldMaskY) = this.hioMaskY.valRaw();
+            stValue.(this.cFieldMaskZ) = this.hioMaskZ.valRaw();
+            stValue.(this.cFieldMaskT) = this.hioMaskT.valRaw();
+            
             
             ceValues = cell(1, 1); 
             ceValues{1} = stValue;

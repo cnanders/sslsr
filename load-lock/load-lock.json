@@ -1,0 +1,16 @@
+{
+	"unit": {
+		"maskX": "mm",
+		"maskY": "mm",
+		"maskZ": "mm",
+		"maskT": "deg"
+	},
+	"values": [
+		{
+			"maskX": 10,
+			"maskY": 4,
+			"maskZ": -3,
+			"maskT": 2
+		}
+	]
+}

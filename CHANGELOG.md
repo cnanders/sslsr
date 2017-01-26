@@ -1,3 +1,11 @@
+# 1.0.0-alpha.12
+
+### sins.main.Main
+- Using new Sins2Instruments.jar
+- lin/log toggle now works for 2-axis scans
+- when lunching and was in 2-axis state previously, now properly shows the 2-axis results panel and updates the plot on load.
+- Added "Save Load Lock" recipe button to UI.  Saves the raw position of maskX,Y,Z,T to a recipe file.  Sample -> LL now reads the recipe file and uses it to do the 1-state StateScan to bring the state to LL position.  I had to make a special StateScanSetStateLL method to use hio.setRaw() instead of the normal hio.setValCalDisplay() that is normally used during StateScans.
+
 # 1.0.0-alpha.11
 
 ### sins.main.Main
@@ -6,6 +14,7 @@
 - All deviceUi now save/load their unit, zero, and abs/rel toggle state.  This was a change within the MIC library but also noted here.
 - launch.m now loads the mono DLLs
 - New panel "plot tools" for the y-axis scale toggle and active display of x, y location when hovering over the 1D axes for 1-axis and 2-axis scan types
+- moved some utility methods from sins.main.Main into MicUtils
 
 # 1.0.0-alpha.10
 
