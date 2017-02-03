@@ -1,3 +1,8 @@
+# 1.0.0-alpha.13
+
+### sins.main.Main
+- Fixed bug with aborting a scan while it is in the middle of an acquire phase.  In the onScanAbort callback, I was setting dProgress manually to zero.  The end of onScanAcquire calls updateStatus.  updateStatus sets this.dProgress = this.scanIndex/scanNum and uses dProgress to compute some estimations for time complete.  However, if onScanAbort is asynchronously executed midway through updteStatus, dProgress can be set to zero before it is used to compute remaining time and there could be a division by zero.  This was the source of the error. Should have used a pure function!
+
 # 1.0.0-alpha.12
 
 ### sins.main.Main
