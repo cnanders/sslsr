@@ -1502,23 +1502,21 @@ classdef Main < HandlePlus
         function onStateScanComplete(this, stUnit)
             
             this.msg('onStateScanComplete()');
-            this.dProgress = 0;
+            % this.dProgress = 0;
             this.saveScanResults(stUnit);
             this.resetUI();
         end
         
         function onStateScanAbort(this, stUnit)
-            
-            
+
+            % NOTE - this can happen in the middle of an acquire
             this.msg('onStateScanAbort()');
-            
-            this.dProgress = 0;
+            this.uitxStatus.cVal = sprintf('Aborted (%1.1f%%)', this.dProgress * 100);
             this.stopMotors();
-            
             this.saveScanResults(stUnit, true);
             this.resetUI();
         end
-        
+                
         % Stop all potentially moving motors
         
         function stopMotors(this)
@@ -2017,7 +2015,11 @@ classdef Main < HandlePlus
             % Use elapsed days and progress to estimate the number of days
             % for the entire scan to complete
             
-            dDaysScan = dDaysElapsed / this.dProgress;
+            if this.dProgress == 0
+                dDaysScan = 0;
+            else
+                dDaysScan = dDaysElapsed / this.dProgress;
+            end
             
             dDaysRemaining = dDaysScan - dDaysElapsed;
             
@@ -2027,8 +2029,13 @@ classdef Main < HandlePlus
             % number of days since Jan 0, 0000 (obtained with "now") to get
             % the estimated complete time.  
             
-            this.uitxTimeComplete.cVal = datestr(this.dDaysStart + dDaysScan, 'HH:MM:SS', 'local');
-            this.uitxTimeRemaining.cVal = datestr(dDaysRemaining, 'HH:MM:SS', 'local');
+            try
+                this.uitxTimeComplete.cVal = datestr(this.dDaysStart + dDaysScan, 'HH:MM:SS', 'local');
+                this.uitxTimeRemaining.cVal = datestr(dDaysRemaining, 'HH:MM:SS', 'local');
+            catch e
+                this.dDaysStart
+                dDaysScan
+            end
             
         end
         
@@ -2283,7 +2290,7 @@ classdef Main < HandlePlus
                     );
                     % title(this.hAxes1D, 'Results');
                     xlabel(this.hAxes1D, sprintf('Trial'));
-                    ylabel(this.hAxes1D, sprintf('I (%s)', 'uA')); % FIXME
+                    ylabel(this.hAxes1D, sprintf('I (%s)', 'A')); % FIXME
                     % xlim(this.hAxes, [0 max(this.dTime*1000)])
                     % ylim(this.hAxes, [-this.uieVoltsScale.val() this.uieVoltsScale.val()])
                     
@@ -2292,6 +2299,12 @@ classdef Main < HandlePlus
                     if isempty(this.hLegend1D)
                     	this.hLegend1D = legend(this.hAxes1D, 'Idet','Izero');
                         set(this.hLegend1D, 'FontSize', this.dSizeFont);
+                    end
+                    
+                    dMin = min(this.d1DResultParam);
+                    dMax = max(this.d1DResultParam);
+                    if dMin ~= dMax
+                        xlim(this.hAxes1D, [dMin dMax]);
                     end
                     
                     set(this.hAxes1D, 'FontSize', this.dSizeFont);
@@ -3373,7 +3386,8 @@ classdef Main < HandlePlus
                 dWidth, ...
                 this.dHeightButton ...
             );
-        
+            this.uibLoadLock.setTooltip('Send maskX,Y,Z,T to load lock state');
+
             this.uibLoadLockSave.build(this.hPanelStages, ...
                 dLeft + dWidth + 10, ...
                 dTop + dN * this.dHeightHio + 5, ...
@@ -3382,7 +3396,7 @@ classdef Main < HandlePlus
             ); 
             
             
-            
+            this.uibLoadLockSave.setTooltip('Save current maskX,Y,Z,T raw values as load lock state');
         end
         
 
@@ -3401,8 +3415,8 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            return
+            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            % return
             
             % Temporarily set all Apis to virtual Apis
             
@@ -3423,7 +3437,7 @@ classdef Main < HandlePlus
             deviceMaskT = deviceSins.getMaskT();
             deviceDetX = deviceSins.getDetectorX(); 
             deviceDetT = deviceSins.getDetectorT();
-            deviceFilterY = deviceSins.getFilterStage();
+            % deviceFilterY = deviceSins.getFilterStage();
             deviceKeithley = ApiKeithley6482();
             
             % Keithley 
@@ -3442,7 +3456,7 @@ classdef Main < HandlePlus
             this.stHio.(this.cFieldMaskT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT))
             this.stHio.(this.cFieldDetX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetX))
             this.stHio.(this.cFieldDetT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetT))
-            this.stHio.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
+            % this.stHio.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
             
             
             
