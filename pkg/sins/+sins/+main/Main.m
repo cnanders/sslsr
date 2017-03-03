@@ -3415,8 +3415,8 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            % return
+            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            return
             
             % Temporarily set all Apis to virtual Apis
             
