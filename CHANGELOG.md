@@ -1,3 +1,13 @@
+# 1.0.0-alpha.14
+
+### sins.mono.ApiHardwareIOPlusFromMono
+
+- Fixed bug with the accessor methods requiring a pre-initialized pointer to a MATLAB `int32`, which was not being passing.  Also, the accessor methods return two values, where the second value is the data being requested.  The previous wrapper assumed only one return value.  This update fixes that problem.
+
+### tests/test_apiHardwareIOPlusFromMono
+
+- Built a test for sins.mono.ApiHardwareIOPlusFromMono that initializes each possible wrapper and calls its get() and set() methods to make sure they work.    
+
 # 1.0.0-alpha.13
 
 ### sins.main.Main
