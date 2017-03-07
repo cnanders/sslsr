@@ -3415,8 +3415,8 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            % return
+            %this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            %return
             
             % Temporarily set all Apis to virtual Apis
             
@@ -3437,7 +3437,7 @@ classdef Main < HandlePlus
             deviceMaskT = deviceSins.getMaskT();
             deviceDetX = deviceSins.getDetectorX(); 
             deviceDetT = deviceSins.getDetectorT();
-            % deviceFilterY = deviceSins.getFilterStage();
+            deviceFilterY = deviceSins.getFilterStage();
             deviceKeithley = ApiKeithley6482();
             
             % Keithley 
@@ -3456,7 +3456,7 @@ classdef Main < HandlePlus
             this.stHio.(this.cFieldMaskT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceMaskT))
             this.stHio.(this.cFieldDetX).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetX))
             this.stHio.(this.cFieldDetT).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceDetT))
-            % this.stHio.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
+            this.stHio.(this.cFieldFilterY).hio.setApi(sins.axis.ApiHardwareIOPlusFromAxis(deviceFilterY))
             
             
             

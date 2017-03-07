@@ -1,7 +1,7 @@
 [cDirThis, cName, cExt] = fileparts(mfilename('fullpath'));
 
 % App root
-cDirApp = cDirThis;
+cDirApp = fullfile(cDirThis, '..');
 
 % Add EUV dll files to path
 cPathMonoLibs = fullfile(...
@@ -33,6 +33,18 @@ p=int32(0); % explicitly initi variable out of an abundence of caution
 b=int32(0);
 [a,b]=calllib('EUV_LV','CheckEnergyOK',p)
 
+% Add sins package (by adding its parent dir)
+addpath(genpath(fullfile(cDirApp, 'pkg', 'sins')));
+
+energy = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono.cPropPhotonEnergy);
+wav = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono.cPropPhotonWav);
+grating = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono.cPropGrating);
 
 
+energy.get()
+wav.get()
+grating.get()
+
+wav.set(2.3)
+wav.get()
 
