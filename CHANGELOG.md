@@ -1,7 +1,8 @@
 # 1.0.0-alpha.15
 
 - Moved dependency /lib/mic into /vendor/github/cnanders/mic
-- Added dependency /vendor/fileexchange/struct2csv
+- Added header showing scan type and scanned devices to csv
+
 
 ### sins.main.Main
 
