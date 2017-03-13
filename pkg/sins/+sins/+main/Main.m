@@ -1694,6 +1694,8 @@ classdef Main < HandlePlus
                 case this.cTypeTwoDevice
                     fprintf(fid, '# "%s", "%s"\n', this.uipDevice1.val(), this.uipDevice2.val());
                 otherwise
+                    fprintf(fid, '#\n');
+
             end
             
             % Write the field names
