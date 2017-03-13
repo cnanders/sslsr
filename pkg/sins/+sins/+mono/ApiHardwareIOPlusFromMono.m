@@ -38,13 +38,18 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
         end
 
         function d = get(this)
+            % Need to pass in a pointer to each of call to EUV_LV "p"
+            p = int32(0);
             switch(this.cProp)
                 case this.cPropPhotonEnergy
-                    d = calllib(this.cLib, 'GetEncoderEnergy');
+                    [a, b] = calllib(this.cLib, 'GetEncoderEnergy', p);
+                    d = b;
                 case this.cPropPhotonWav
-                    d = this.ev2nm(calllib(this.cLib, 'GetEncoderEnergy'));
+                    [a, b] = calllib(this.cLib, 'GetEncoderEnergy', p);
+                    d = this.ev2nm(b);
                 case this.cPropGrating
-                    d = calllib(this.cLib, 'CheckGrating');
+                    [a, b] = calllib(this.cLib, 'CheckGrating', p);
+                    d = b;
                 otherwise
                     cMsg = sprintf('get() %s is not supported', this.cProp);
                     this.msg(cMsg);
@@ -53,10 +58,13 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
 
 
         function l = isReady(this)
+            
+            % Pointer
+            p = int32(0);
             switch(this.cProp)
-                case this.cPropPhotonEnergy
-                case this.cPropPhotonWav
-                    l = calllib(this.cLib, 'CheckEnergyOK');
+                case {this.cPropPhotonEnergy, this.cPropPhotonWav}
+                    [a, b] = calllib(this.cLib, 'CheckEnergyOK', p);
+                    l = b;
                 case this.cPropGrating
                     % FIXME
                     l = true;
@@ -83,8 +91,7 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
 
         function stop(this)
             switch(this.cProp)
-                case this.cPropPhotonEnergy
-                case this.cPropPhotonWav
+                case {this.cPropPhotonEnergy, this.cPropPhotonWav}
                     calllib(this.cLib, 'StopSetEnergy');
                 case this.cPropGrating
                     % FIXME
@@ -112,16 +119,16 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
     
     methods (Access = private)
        
-        % @param {double 1x1} dVal - photon wavelength in nm
+        % @param {double 1x1} dNm - photon wavelength in nm
         % @return {double 1x1} photon energy in eV
-        function d = nm2ev(this, dVal)
-            d = this.dEvNm / dVal;
+        function d = nm2ev(this, dNm)
+            d = this.dEvNm / dNm;
         end
         
-        % @param {double 1x1} dVal - photon energy in eV
+        % @param {double 1x1} dEv - photon energy in eV
         % @return {double 1x1} photon wavelength in nm
-        function d = ev2nm(this, dVal)
-            d = this.dEvNm / dVal;
+        function d = ev2nm(this, dEv)
+            d = this.dEvNm / dEv;
         end
     end
 end %class

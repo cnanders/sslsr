@@ -7,10 +7,10 @@
 	},
 	"values": [
 		{
-			"maskX": 10,
-			"maskY": 4,
-			"maskZ": -3,
-			"maskT": 2
+			"maskX": 0.00011,
+			"maskY": -2.000012,
+			"maskZ": 2.000003,
+			"maskT": 1.999957
 		}
 	]
 }
