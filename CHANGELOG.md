@@ -1,3 +1,12 @@
+# 1.0.0-alpha.15
+
+- Moved dependency /lib/mic into /vendor/github/cnanders/mic
+- Added dependency /vendor/fileexchange/struct2csv
+
+### sins.main.Main
+
+- Changed how .csv files are saved to use functions supported by older versions of MATLAB, namely R2013a.
+
 # 1.0.0-alpha.14
 
 ### sins.mono.ApiHardwareIOPlusFromMono
