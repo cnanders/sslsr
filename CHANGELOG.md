@@ -1,3 +1,13 @@
+# 1.0.0-alpha.18
+
+### sins.main.Main
+
+- Scan folders, recipes, and result files are now appended with the value of the “Sample Metadata” field, per request, e.g., 
+- Scan-20170313-200755-Test-B/
+  - 20170313-200800-Test-B-Result.json
+  - 20170313-200801-Test-B-Result.csv
+  - 20170313-200755-Test-B-Recipe.json
+
 # 1.0.0-alpha.17
 
 ### sins.main.Main

@@ -1575,7 +1575,7 @@ classdef Main < HandlePlus
             this.uitxStatus.cVal = 'Writing recipe ...';
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
-            cName = sprintf('%s-Recipe.json', cTimestamp);
+            cName = sprintf('%s-%s-Recipe.json', cTimestamp, this.uieMeta.val());
             
             this.checkDir(this.cDirScan);
             
@@ -1617,9 +1617,9 @@ classdef Main < HandlePlus
             
             switch lAborted
                 case true
-                    cName = sprintf('%s-Result-Aborted.json', cTimestamp);
+                    cName = sprintf('%s-%s-Result-Aborted.json', cTimestamp, this.uieMeta.val());
                 case false
-                    cName = sprintf('%s-Result.json', cTimestamp);
+                    cName = sprintf('%s-%s-Result.json', cTimestamp, this.uieMeta.val());
             end
             
             cPath = fullfile(...
@@ -1654,9 +1654,9 @@ classdef Main < HandlePlus
             
             switch lAborted
                 case true
-                    cName = sprintf('%s-Result-Aborted.csv', cTimestamp);
+                    cName = sprintf('%s-%s-Result-Aborted.csv', cTimestamp, this.uieMeta.val());
                 case false
-                    cName = sprintf('%s-Result.csv', cTimestamp);
+                    cName = sprintf('%s-%s-Result.csv', cTimestamp, this.uieMeta.val());
             end
             
             cPath = fullfile(...
@@ -1955,7 +1955,7 @@ classdef Main < HandlePlus
             this.uitxStatus.cVal = 'Creating scan dir ...';
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
-            cName = sprintf('Scan-%s', cTimestamp);
+            cName = sprintf('Scan-%s-%s', cTimestamp, this.uieMeta.val());
             
             this.cDirScan = fullfile(this.cDirSave, cName);
             this.checkDir(this.cDirScan);
