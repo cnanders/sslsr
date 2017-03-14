@@ -66,8 +66,14 @@ classdef ApiHardwareIOPlusFromMono < InterfaceApiHardwareIOPlus
                     [a, b] = calllib(this.cLib, 'CheckEnergyOK', p);
                     l = b;
                 case this.cPropGrating
-                    % FIXME
-                    l = true;
+                    
+                    [a, b] = calllib(this.cLib, 'CheckGrating', p);
+                    if b == 0
+                        l = false;
+                    else
+                        l = true;
+                    end
+                    
                 otherwise
                     cMsg = sprintf('isReady() %s is not supported', this.cProp);
                     this.msg(cMsg);

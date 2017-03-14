@@ -3,6 +3,12 @@
 % App root
 cDirApp = fullfile(cDirThis, '..');
 
+% Add SSLSR package
+addpath(genpath(fullfile(cDirApp, 'pkg', 'sins')));
+
+% Add mic library
+addpath(genpath(fullfile(cDirApp, 'lib', 'mic')));
+
 % Add EUV dll files to path
 cPathMonoLibs = fullfile(...
     cDirApp, ...
@@ -40,11 +46,12 @@ energy = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono
 wav = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono.cPropPhotonWav);
 grating = sins.mono.ApiHardwareIOPlusFromMono(sins.mono.ApiHardwareIOPlusFromMono.cPropGrating);
 
-
+%{
 energy.get()
 wav.get()
 grating.get()
 
-wav.set(2.3)
+% wav.set(2.3)
 wav.get()
+%}
 
