@@ -28,7 +28,7 @@ classdef Main < HandlePlus
         cDeviceDetX = 'det x';
         cDeviceDetT = 'det t';
         cDeviceFilterY = 'filter y';
-        cDeviceMaskTDet2T = 'mask t, det 2t';
+        cDeviceMaskTDet2T = 'mask t det 2t';
         cDeviceTime = 'time';
         
         cTypeOneDevice = '1 axis';
@@ -1663,10 +1663,68 @@ classdef Main < HandlePlus
                 this.cDirScan, ...
                 cName ...
             );
-                    
+             
+            %{
+            % Pre 2017.03.13
             stResult = MicUtils.cellOfSt2structAr(this.ceValues);
             tableResult = struct2table(stResult);
             writetable(tableResult, cPath);
+            %}
+            
+            % 2017.03.13 Try 1
+            % struct2csv(stResult, cPath);
+            
+            % 2017.03.13 Manual
+            
+            if isempty(this.ceValues)
+                return
+            end
+            
+            % Open the file
+            fid = fopen(cPath, 'w');
+
+            % Write the header
+            % Type
+            fprintf(fid, '# "%s"\n', this.uipType.val());
+            % Deivice list
+            switch this.uipType.val()
+                                
+                case this.cTypeOneDevice
+                   fprintf(fid, '# "%s"\n', this.uipDevice1.val());
+                case this.cTypeTwoDevice
+                    fprintf(fid, '# "%s", "%s"\n', this.uipDevice1.val(), this.uipDevice2.val());
+                otherwise
+                    fprintf(fid, '#\n');
+
+            end
+            
+            % Write the field names
+            ceNames = fieldnames(this.ceValues{1});
+            for n = 1:length(ceNames)
+                fprintf(fid, '%s,', ceNames{n});
+            end
+            fprintf(fid, '\n');
+
+            % Write values
+            for n = 1 : length(this.ceValues)
+                stValue = this.ceValues{n};
+                if ~isstruct(stValue)
+                    continue
+                end
+                ceNames = fieldnames(stValue);
+                for m = 1 : length(ceNames)
+                    switch ceNames{m}
+                        case 'time'
+                            fprintf(fid, '%s,', stValue.(ceNames{m}));
+                        otherwise
+                            fprintf(fid, '%1.3e,', stValue.(ceNames{m}));
+                    end
+                end
+                fprintf(fid, '\n');
+            end
+
+            % Close the file
+            fclose(fid);
 
         end
         
@@ -3415,8 +3473,10 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
-            %this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            %return
+
+            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            return
+            
             
             % Temporarily set all Apis to virtual Apis
             

@@ -1,3 +1,31 @@
+# 1.0.0-alpha.17
+
+### sins.main.Main
+
+- .csv file now has a second header row for script scan types. The header contains only the pound character (#), e.g.
+
+```
+# "script"
+#
+wav, grating, ...
+```
+
+# 1.0.0-alpha.16
+
+### README.md
+
+- Improved documentation
+
+# 1.0.0-alpha.15
+
+Moved dependency /lib/mic into /vendor/github/cnanders/mic
+
+### sins.main.Main
+
+- Changed how .csv files are saved.  Now uses fprintf() instead of sturct2table() and writetable(), which are only supported in MATLAB > R2013b.
+- .csv files now have a header that indicate scan type and scanned devices
+
+
 # 1.0.0-alpha.14
 
 ### sins.mono.ApiHardwareIOPlusFromMono

@@ -4,11 +4,13 @@
 % App root
 cDirApp = cDirThis;
 
-% Add tests
-addpath(genpath(fullfile(cDirApp, 'tests')));
-
-% Add mic
-addpath(genpath(fullfile(cDirApp, 'lib', 'mic')));
+% Dependencies
+% github/cnanders/mic
+addpath(genpath(fullfile(cDirApp, 'vendor', 'github', 'cnanders', 'mic')));
+%{
+% fileexchange/struct2csv
+addpath(genpath(fullfile(cDirApp, 'vendor', 'fileexchange', 'struct2csv')));
+%}
 
 % Add sins package (by adding its parent dir)
 addpath(genpath(fullfile(cDirApp, 'pkg', 'sins')));
@@ -32,9 +34,13 @@ cPathMonoLibs = fullfile(...
 
 % Hack to load the DLLs.  CD into the directory, call the load script, then
 % CD back out
+
+%{
 cd(cPathMonoLibs);
 EUV_LV_load_demo2
 cd(cDirThis);
+%}
+
 
 %{
 % Load EUV_LV DLL
