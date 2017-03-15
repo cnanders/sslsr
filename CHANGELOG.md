@@ -1,3 +1,8 @@
+# 1.0.0-alpha.20
+
+- Upgraded to github/cnanders/mic v1.0.0-alpha.44 which supports inverse units in device UI elements
+- Updated config/mono.json with eV unit
+
 # 1.0.0-alpha.19
 
 ### sins.main.Main
