@@ -35,11 +35,11 @@ cPathMonoLibs = fullfile(...
 % Hack to load the DLLs.  CD into the directory, call the load script, then
 % CD back out
 
-%{
+
 cd(cPathMonoLibs);
 EUV_LV_load_demo2
 cd(cDirThis);
-%}
+
 
 
 %{
