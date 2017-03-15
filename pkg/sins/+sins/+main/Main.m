@@ -17,6 +17,16 @@ classdef Main < HandlePlus
         dHeightButton = 24;
         dHeightText = 24;
         
+        cPlotDataTypeCombined = 'Idet + Izero'
+        cPlotDataTypeI0 = 'Izero'
+        cPlotDataTypeIDet = 'Idet'
+        
+        cPlotYLimitTypeAuto = 'auto'
+        cPlotYLimitTypeManual = 'manual'
+        
+        cPlotYScaleTypeLinear = 'linear'
+        cPlotYScaleTypeLog = 'log'
+        
         cNameLoadLockRecipe = 'load-lock.json';
         
         cDeviceMono = 'wav';
@@ -55,7 +65,7 @@ classdef Main < HandlePlus
         dColorBgFigure = [200 200 200]./255;
         
         dWidth = 1500
-        dHeight = 485 % 650;
+        dHeight = 530 % 650;
         
         dWidthPanelBorder = 0;
         dWidthPad = 10;
@@ -84,7 +94,7 @@ classdef Main < HandlePlus
         dHeightPanelMono = 70;
         
         
-        dHeightPanelPlotTools = 34;
+        dHeightPanelPlotTools = 65;
         
         dWidthPanelPicoammeter = 300;
         dHeightPanelPicoammeter = 70; % 350;
@@ -153,6 +163,13 @@ classdef Main < HandlePlus
         stStartStopStepsStore2
         
         uitPlotType
+        
+        uipPlotDataType
+        uipPlotYScaleType
+        uipPlotYLimitType
+        uipPlotYLimitMin
+        uiePlotYLimitMax
+        
     
     end
     
@@ -274,6 +291,7 @@ classdef Main < HandlePlus
         uitxPlotY
         uitxPlotTypeLabel
         
+       
         % Deprecated
         stMoveRequired      % struct of logicals that is used to store which 
                             % which need to be moved when setting a new
@@ -382,6 +400,10 @@ classdef Main < HandlePlus
         
         uibLoadLock
         uibLoadLockSave
+        
+        
+        uitxPlotIDetColor
+        uitxPlotIZeroColor
         
     end
     
@@ -677,12 +699,12 @@ classdef Main < HandlePlus
                         dValues2 = linspace(...
                             this.uieStart2.val(), ...
                             this.uieStop2.val(), ...
-                            this.uieSteps2.val() ...
+                            this.uieSteps2.val() + 1 ...
                         );
                         
                         this.d1DResultParam = dValues2;
-                        this.d1DResultIDet = zeros(1, this.uieSteps2.val());    
-                        this.d1DResultIZero = zeros(1, this.uieSteps2.val());
+                        this.d1DResultIDet = zeros(size(dValues2));    
+                        this.d1DResultIZero = zeros(size(dValues2));
                         
                     end
                     
@@ -810,6 +832,8 @@ classdef Main < HandlePlus
             this.onTypeChange([], []);
             %this.msg('build() calling updatePlot()');
             %this.updatePlot(this.getSystemUnits());
+            
+            this.onPlotYLimitTypeChange();
 
         end
         
@@ -1322,8 +1346,8 @@ classdef Main < HandlePlus
                 if ~strcmp(get(this.hFigure, 'Pointer'), 'arrow')
                     set(this.hFigure, 'Pointer', 'arrow')
                 end
-                this.uitxPlotX.cVal = 'x: ...';
-                this.uitxPlotY.cVal = 'y: ...';
+                this.uitxPlotX.cVal = 'x: [hover]';
+                this.uitxPlotY.cVal = 'y: [hover]';
            end
         end
         
@@ -1575,7 +1599,7 @@ classdef Main < HandlePlus
             this.uitxStatus.cVal = 'Writing recipe ...';
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
-            cName = sprintf('%s-Recipe.json', cTimestamp);
+            cName = sprintf('%s-%s-Recipe.json', cTimestamp, this.uieMeta.val());
             
             this.checkDir(this.cDirScan);
             
@@ -1617,9 +1641,9 @@ classdef Main < HandlePlus
             
             switch lAborted
                 case true
-                    cName = sprintf('%s-Result-Aborted.json', cTimestamp);
+                    cName = sprintf('%s-%s-Result-Aborted.json', cTimestamp, this.uieMeta.val());
                 case false
-                    cName = sprintf('%s-Result.json', cTimestamp);
+                    cName = sprintf('%s-%s-Result.json', cTimestamp, this.uieMeta.val());
             end
             
             cPath = fullfile(...
@@ -1654,9 +1678,9 @@ classdef Main < HandlePlus
             
             switch lAborted
                 case true
-                    cName = sprintf('%s-Result-Aborted.csv', cTimestamp);
+                    cName = sprintf('%s-%s-Result-Aborted.csv', cTimestamp, this.uieMeta.val());
                 case false
-                    cName = sprintf('%s-Result.csv', cTimestamp);
+                    cName = sprintf('%s-%s-Result.csv', cTimestamp, this.uieMeta.val());
             end
             
             cPath = fullfile(...
@@ -1955,7 +1979,7 @@ classdef Main < HandlePlus
             this.uitxStatus.cVal = 'Creating scan dir ...';
             
             cTimestamp = datestr(datevec(now), 'yyyymmdd-HHMMSS', 'local');
-            cName = sprintf('Scan-%s', cTimestamp);
+            cName = sprintf('Scan-%s-%s', cTimestamp, this.uieMeta.val());
             
             this.cDirScan = fullfile(this.cDirSave, cName);
             this.checkDir(this.cDirScan);
@@ -2177,41 +2201,16 @@ classdef Main < HandlePlus
 
                     % Plot IDet, IZero vs. controlled device value
 
-                    % Delete old line series
-                    
-                    delete(this.hLines1DIDet);
-                    delete(this.hLines1DIZero);
-                    
-                    this.hLines1DIDet = plot(...
-                        this.hAxes1D, ...
-                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
-                        'MarkerSize', this.dSizeMarker ...
-                    );
-                    this.hLines1DIZero = plot(...
-                        this.hAxes1D, ...
-                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
-                        'MarkerSize', this.dSizeMarker ...
-                    );
-                
+                    this.updateAxes1DData();
+                                    
                     % set(this.hLines1DIDet, 'HitTest','off');
                     % set(this.hLines1DIZero, 'HitTest','off');
-                
-                    if this.uitPlotType.lVal
-                        set(this.hAxes1D, 'YScale', 'log');
-                    else
-                        set(this.hAxes1D, 'YScale', 'linear');
-                    end
                     % title(this.hAxes1D, 'Results');
                                                             
                     xlabel(this.hAxes1D, this.devicePlotLabel(this.uipDevice1.val(), stUnit));
                     ylabel(this.hAxes1D, sprintf('I (%s)', 'A'));
-                    % xlim(this.hAxes1D, [this.d1DResultParam(1) this.d1DResultParam(end)]);
                     
-                    dMin = min(this.d1DResultParam);
-                    dMax = max(this.d1DResultParam);
-                    if dMin ~= dMax
-                        xlim(this.hAxes1D, [dMin dMax]);
-                    end
+                    %}
                     
                     %{
                     grid(this.hAxes1D, 'minor');
@@ -2221,16 +2220,8 @@ classdef Main < HandlePlus
                         'YMinorTick','on' ...
                     )
                     %}
-                    % xlim(this.hAxes, [0 max(this.dTime*1000)])
-                    % ylim(this.hAxes, [-this.uieVoltsScale.val() this.uieVoltsScale.val()])
                     
-                    % Draw legend first time
-                    
-                    if isempty(this.hLegend1D)
-                    	this.hLegend1D = legend(this.hAxes1D, 'Idet','Izero');
-                        set(this.hLegend1D, 'FontSize', this.dSizeFont);
-                    end
-                    
+                                        
                     set(this.hAxes1D, 'FontSize', this.dSizeFont);
 
                                 
@@ -2239,30 +2230,11 @@ classdef Main < HandlePlus
                     this.msg(sprintf('updatePlot() case: %s', this.cTypeTwoDevice));
                     % Plot of current 2nd dimension being scanned
                     
-                    % Remove old line series
-                    
-                    delete(this.hLines2D1IDet);
-                    delete(this.hLines2D1IZero);
-                    
-                    this.hLines2D1IDet = plot(...
-                        this.hAxes2D1, ...
-                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
-                        'MarkerSize', this.dSizeMarker ...
-                    );
-                    this.hLines2D1IZero = plot(...
-                        this.hAxes2D1, ...
-                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
-                        'MarkerSize', this.dSizeMarker ...
-                    );
-                
-                    if this.uitPlotType.lVal
-                        set(this.hAxes2D1, 'YScale', 'log');
-                    else
-                        set(this.hAxes2D1, 'YScale', 'linear');
-                    end
-                
+                   
                     
                     
+                    this.updateAxes2D1Data();
+                   
         
                     cLabel = sprintf(...
                         '%s at %s', ...
@@ -2272,23 +2244,8 @@ classdef Main < HandlePlus
                     
                     xlabel(this.hAxes2D1, cLabel);
                     ylabel(this.hAxes2D1, sprintf('I (%s)', 'A'));
-                    % xlim(this.hAxes2D1, [this.d1DResultParam(1) this.d1DResultParam(end)]);
                     
-                    dMin = min(this.d1DResultParam);
-                    dMax = max(this.d1DResultParam);
-                    if dMin ~= dMax
-                        xlim(this.hAxes2D1, [dMin dMax]);
-                    end
-
-                    
-                    % Draw legend first time
-                    
-                    if isempty(this.hLegend2D1)
-                        this.msg('updatePlot() building legend for axes2D1');
-                    	this.hLegend2D1 = legend(this.hAxes2D1, 'Idet', 'Izero');
-                        % this.hLegend2D1.FontSize = this.dSizeFont;
-                        set(this.hLegend2D1, 'FontSize', this.dSizeFont);
-                    end
+                            
                     
                     % Set FontSize at end for some reason it is required to
                     % do it at the end
@@ -2299,7 +2256,10 @@ classdef Main < HandlePlus
                     % cla(this.hAxes2D2)
                     
                     % Remove old line series
-                    delete(this.hLines2D2);
+                    
+                    if ~isempty(this.hLines2D2) && all(ishandle(this.hLines2D2))
+                        delete(this.hLines2D2);
+                    end
                     
                     this.hLines2D2 = plot3(...
                         this.hAxes2D2, ...
@@ -2307,11 +2267,18 @@ classdef Main < HandlePlus
                         'MarkerSize', this.dSizeMarker ...
                     );
                 
+                    %{
                     if this.uitPlotType.lVal
                         set(this.hAxes2D2, 'ZScale', 'log');
                     else
                         set(this.hAxes2D2, 'ZScale', 'linear');
                     end
+                    
+                    %}
+                    
+                    this.updateAxesZScale(this.hAxes2D2);
+
+
                 
                     xlabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice1.val(), stUnit)); 
                     ylabel(this.hAxes2D2, this.devicePlotLabel(this.uipDevice2.val(), stUnit));  
@@ -2359,11 +2326,13 @@ classdef Main < HandlePlus
                         set(this.hLegend1D, 'FontSize', this.dSizeFont);
                     end
                     
+                    %{
                     dMin = min(this.d1DResultParam);
                     dMax = max(this.d1DResultParam);
-                    if dMin ~= dMax
+                    if dMin < dMax
                         xlim(this.hAxes1D, [dMin dMax]);
                     end
+                    %}
                     
                     set(this.hAxes1D, 'FontSize', this.dSizeFont);
                     
@@ -2409,6 +2378,15 @@ classdef Main < HandlePlus
             
         end
         
+        function showPlotYLimitUi(this)
+            this.uipPlotYLimitMin.show();
+            this.uiePlotYLimitMax.show();
+        end
+        
+        function hidePlotYLimitUi(this)
+            this.uipPlotYLimitMin.hide();
+            this.uiePlotYLimitMax.hide();
+        end
         
         function showPanel1D(this)
             
@@ -2657,8 +2635,8 @@ classdef Main < HandlePlus
                         this.uieSteps1.val() + 1 ...
                     );
                     this.d1DResultParam = dValues;
-                    this.d1DResultIDet = zeros(1, this.uieSteps1.val() + 1);    
-                    this.d1DResultIZero = zeros(1, this.uieSteps1.val() + 1);
+                    this.d1DResultIDet = zeros(size(dValues));    
+                    this.d1DResultIZero = zeros(size(dValues));
                     
                 case this.cTypeTwoDevice
                     
@@ -2682,8 +2660,8 @@ classdef Main < HandlePlus
                     % for the 1D plot on the left
                     
                     this.d1DResultParam = dValues2;
-                    this.d1DResultIDet = zeros(1, this.uieSteps2.val() + 1);    
-                    this.d1DResultIZero = zeros(1, this.uieSteps2.val() + 1);
+                    this.d1DResultIDet = zeros(size(dValues2));    
+                    this.d1DResultIZero = zeros(size(dValues2));
 
                     % Initialize result storage for x, y, z mesh plotting
                     % Each 1D scan is a col of the matrix so the number of rows is
@@ -2724,6 +2702,9 @@ classdef Main < HandlePlus
             end
             
             this.msg('resetPlot() calling updatePlot()');
+            
+            this.updateAxes1DXLimits();
+            this.updateAxes2D1XLimits();
             this.updatePlot(this.getSystemUnits());
 
         end
@@ -3166,22 +3147,27 @@ classdef Main < HandlePlus
             % 'BackgroundColor', dColorBg, ...
 
             dLeft = this.dWidthPad;
-            dHeightTop = this.dHeightScan + this.dHeightSettings + + 20 + this.dHeightResult;
+            dHeightTop = this.dHeightScan + this.dHeightSettings + 30 + this.dHeightResult;
             dWidthPanel = this.dWidthScan;
             this.hPanelPlotTools =  uipanel(...
                 'Parent', this.hFigure,...
+                'Title', 'Plot Tools', ...
                 'Units', 'pixels',...
                 'Clipping', 'on',...
                 'BorderWidth', this.dWidthPanelBorder, ...
-                'BackgroundColor', dColorBg, ...
                 'Position', MicUtils.lt2lb([dLeft dHeightTop dWidthPanel this.dHeightPanelPlotTools], this.hFigure) ...
             );
         
-            dLeft = 55;
-            dTop = 0;
+            dLeft = 10;
+            dTop = 20;
             
             dPad = 10;
-            dWidth = 40;
+            dWidth = 110;
+            
+            this.uipPlotDataType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, 24);
+            dLeft = dLeft + dWidth + dPad;
+            
+            %{
             this.uitxPlotTypeLabel.build(...
                 this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3196,11 +3182,25 @@ classdef Main < HandlePlus
             dWidth = 40;
             this.uitPlotType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, this.dWidthBtn);
             dLeft = dLeft + dWidth + dPad;
+            %}
+            
+            this.uipPlotYScaleType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, 24);
+            dLeft = dLeft + dWidth + dPad;
+            
+            this.uipPlotYLimitType.build(this.hPanelPlotTools, dLeft, dTop, dWidth, 24)
+            dLeft = dLeft + dWidth + dPad;
+            
+            dWidth = 50;
+            this.uipPlotYLimitMin.build(this.hPanelPlotTools, dLeft, dTop, dWidth, 24);
+            dLeft = dLeft + dWidth + dPad;
+            
+            this.uiePlotYLimitMax.build(this.hPanelPlotTools, dLeft, dTop, dWidth, 24);
+            dLeft = dLeft + dWidth + dPad;
             
             % x, y active value
             
-            dLeft = dLeft + 50;
-            dTop = 4;
+            dLeft = dLeft + 100;
+            dTop = 30;
             dWidth = 90;   
             this.uitxPlotX.build(...
                 this.hPanelPlotTools, ...
@@ -3209,9 +3209,9 @@ classdef Main < HandlePlus
                 dWidth, ...
                 16 ...
             );
-            this.uitxPlotX.setBackgroundColor(dColorBgText);
+            %this.uitxPlotX.setBackgroundColor(dColorBgText);
         
-            dLeft = dLeft + dWidth + dPad;
+            dTop = dTop + 10;
             this.uitxPlotY.build(...
                 this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3219,7 +3219,28 @@ classdef Main < HandlePlus
                 dWidth, ...
                 16 ...
             );
-            this.uitxPlotY.setBackgroundColor(dColorBgText);
+        
+            dLeft = dLeft + 100;
+        
+            dTop = 30;
+            this.uitxPlotIDetColor.build(...
+                this.hPanelPlotTools, ...
+                dLeft, ...
+                dTop, ...
+                dWidth, ...
+                16 ...
+            );
+            this.uitxPlotIDetColor.setColor([1 0 0]);
+            
+            dTop = dTop + 10;
+            this.uitxPlotIZeroColor.build(...
+               this.hPanelPlotTools, ...
+                dLeft, ...
+                dTop, ...
+                dWidth, ...
+                16 ...
+            );
+            this.uitxPlotIZeroColor.setColor([0 0 1]);
         end
         
         
@@ -3526,17 +3547,55 @@ classdef Main < HandlePlus
             
             this.msg('initPlotTools');
             
+            
+            this.uipPlotDataType = UIPopup( ...
+                {this.cPlotDataTypeCombined, this.cPlotDataTypeIDet, this.cPlotDataTypeI0}, ...
+                'Data (1D)', ...
+                true...
+            );
+            
+            
+            this.uipPlotYScaleType = UIPopup( ...
+                {this.cPlotYScaleTypeLinear, this.cPlotYScaleTypeLog}, ...
+                'Y Scale', ...
+                true...
+            );
+        
             this.uitxPlotTypeLabel = UIText('y-axis:');
-            this.uitxPlotX = UIText('x: ...');
-            this.uitxPlotY = UIText('y: ...');
+            this.uitxPlotX = UIText('x: [hover]');
+            this.uitxPlotY = UIText('y: [hover]');
+            
+            this.uitxPlotIDetColor = UIText('Idet');
+            this.uitxPlotIZeroColor = UIText('Izero');
             
             this.uitPlotType = UIToggle( ...
                 'Lin', ...   % (off) not active
                 'Log' ...  % (on) active
             );
         
+            
+            this.uipPlotYLimitType = UIPopup( ...
+                {this.cPlotYLimitTypeAuto, this.cPlotYLimitTypeManual}, ...
+                'Y Limits', ...
+                true...
+            );
+        
+            this.uipPlotYLimitMin = UIEdit('Min', 'd', true, 'left');
+            this.uiePlotYLimitMax = UIEdit('Max', 'd', true, 'left');
+        
             this.uitPlotType.setTooltip(this.cTooltipPlotTypeLin);
             addlistener(this.uitPlotType, 'eChange', @this.onPlotTypeChange);
+            
+            addlistener(this.uipPlotDataType, 'eChange', @this.onPlotDataTypeChange);
+
+            
+            addlistener(this.uipPlotYScaleType, 'eChange', @this.onPlotYScaleTypeChange);
+            
+            addlistener(this.uipPlotYLimitType, 'eChange', @this.onPlotYLimitTypeChange);
+            addlistener(this.uipPlotYLimitMin, 'eChange', @this.onPlotYLimitMinChange);
+            addlistener(this.uiePlotYLimitMax, 'eChange', @this.onPlotYLimitMaxChange);
+            
+            % this.onPlotYLimitTypeChange();
             
         end
         
@@ -4294,8 +4353,47 @@ classdef Main < HandlePlus
             
             addlistener(this.uibSwap, 'ePress', @this.onSwapPress);
             addlistener(this.uibChooseDir, 'ePress', @this.onChooseSaveDirPress);
+                        
+        end
+        
+        function onPlotDataTypeChange(this, ~, ~)
+           	this.updatePlot(this.getSystemUnits()); 
+            this.updateAxes1DLegend();
+            this.updateAxes2D1Legend();
+        end
+        
+        function onPlotYScaleTypeChange(this, ~, ~)
+            this.updateAxesYScale(this.hAxes1D);
+            this.updateAxesYScale(this.hAxes2D1);
+            this.updateAxesZScale(this.hAxes2D2);
+           	% this.updatePlot(this.getSystemUnits());  
+        end
+          
+        function onPlotYLimitTypeChange(this, ~, ~)
+            switch this.uipPlotYLimitType.val
+                case this.cPlotYLimitTypeAuto
+                    this.hidePlotYLimitUi()
+                case this.cPlotYLimitTypeManual
+                    this.showPlotYLimitUi()
+            end
+            
+            this.updateAxesYLimits(this.hAxes1D);
+            this.updateAxesYLimits(this.hAxes2D1);
             
         end
+
+
+        function onPlotYLimitMinChange(this, ~, ~)
+            this.updateAxesYLimits(this.hAxes1D);
+            this.updateAxesYLimits(this.hAxes2D1);
+        end
+
+
+        function onPlotYLimitMaxChange(this, ~, ~)
+            this.updateAxesYLimits(this.hAxes1D);
+            this.updateAxesYLimits(this.hAxes2D1);
+        end
+        
         
         function onPlotTypeChange(this, src, evt)
            if src.lVal
@@ -4416,7 +4514,268 @@ classdef Main < HandlePlus
             % Don't do anything
         end
         
-       
+        % @param {handle 1x1} handle to the axes that is to be updated
+        function updateAxesZScale(this, h)
+            
+            if  isempty(h) || ...
+                ~ishandle(h)
+                return
+            end
+            
+            
+            switch this.uipPlotYScaleType.val()
+                case this.cPlotYScaleTypeLinear
+                    set(h, 'ZScale', 'linear');
+                case this.cPlotYScaleTypeLog
+                    set(h, 'ZScale', 'log');
+            end   
+            
+        end
+        
+        function updateAxes1DXLimits(this)
+            
+            if  isempty(this.hAxes1D) || ...
+                ~ishandle(this.hAxes1D)
+                return
+            end
+            
+            dMin = min(this.d1DResultParam);
+            dMax = max(this.d1DResultParam);
+            if dMin ~= dMax
+                xlim(this.hAxes1D, [dMin dMax]);
+            end
+            
+            
+        end
+        
+        function updateAxes2D1XLimits(this)
+            
+            if  isempty(this.hAxes2D1) || ...
+                ~ishandle(this.hAxes2D1)
+                return
+            end
+            
+            dMin = min(this.d1DResultParam);
+            dMax = max(this.d1DResultParam);
+            if dMin ~= dMax
+                xlim(this.hAxes2D1, [dMin dMax]);
+            end
+            
+            % xlim(this.hAxes2D1, [this.d1DResultParam(1) this.d1DResultParam(end)]);
+            
+        end
+        
+        
+        % @param {handle 1x1} handle to the axes that is to be updated
+        function updateAxesYScale(this, h)
+            
+            %{
+            if this.uitPlotType.lVal
+                set(h, 'YScale', 'log');
+            else
+                set(h, 'YScale', 'linear');
+            end
+            %}
+            
+            if  isempty(h) || ...
+                ~ishandle(h)
+                return
+            end
+            
+            switch this.uipPlotYScaleType.val()
+                case this.cPlotYScaleTypeLinear
+                    set(h, 'YScale', 'linear');
+                case this.cPlotYScaleTypeLog
+                    set(h, 'YScale', 'log');
+            end            
+        end
+        
+        % @param {handle 1x1} handle to the axes that is to be updated
+        function updateAxesYLimits(this, h)
+            
+            if  isempty(h) || ...
+                ~ishandle(h)
+                return
+            end
+            
+            
+            switch this.uipPlotYLimitType.val()
+                case this.cPlotYLimitTypeAuto
+                    % do not set y limitis
+                    % set to -inf +inf for auto
+                    ylim(h, [-inf inf]);
+                case this.cPlotYLimitTypeManual
+                    if this.uiePlotYLimitMax.val() > this.uipPlotYLimitMin.val()                            
+                        ylim(h, [this.uipPlotYLimitMin.val() this.uiePlotYLimitMax.val()])
+                    else
+                        ylim(h, [-inf inf]);
+                    end
+                otherwise
+                    ylim(h, [-inf inf]);
+            end
+            
+        end
+        
+        function updateAxes1DLegend(this)
+            
+            return;
+            
+            
+            if  isempty(this.hAxes1D) || ...
+                ~ishandle(this.hAxes1D)
+                return
+            end
+            
+            
+            if ~isempty(this.hLegend1D) && ishandle(this.hLegend1D)
+                delete(this.hLegend1D);
+            end
+            
+            switch this.uipPlotDataType.val()
+                case this.cPlotDataTypeCombined
+                    this.hLegend1D = legend(this.hAxes1D, 'Idet','Izero');
+                    % set(this.hLegend1D, 'FontSize', this.dSizeFont);
+                case this.cPlotDataTypeIDet
+                    this.hLegend1D = legend(this.hAxes1D, 'Idet');
+                    % set(this.hLegend1D, 'FontSize', this.dSizeFont);
+                case this.cPlotDataTypeI0
+                    this.hLegend1D = legend(this.hAxes1D, 'Izero');
+                    % set(this.hLegend1D, 'FontSize', this.dSizeFont);
+            end
+            
+        end
+        
+        
+        function updateAxes2D1Legend(this)
+            
+            return
+            
+            if  isempty(this.hAxes2D1) || ...
+                ~ishandle(this.hAxes2D1)
+                return
+            end
+            
+            
+            % Remove old line series
+             if ~isempty(this.hLegend2D1) && ishandle(this.hLegend2D1)
+                delete(this.hLegend2D1);
+             end
+                    
+                    
+            switch this.uipPlotDataType.val()
+                
+                case this.cPlotDataTypeCombined
+                    this.hLegend2D1 = legend(this.hAxes2D1, 'Idet', 'Izero');
+                    % set(this.hLegend2D1, 'FontSize', this.dSizeFont);
+                case this.cPlotDataTypeIDet
+                    this.hLegend2D1 = legend(this.hAxes2D1, 'Idet');
+                    % set(this.hLegend2D1, 'FontSize', this.dSizeFont);
+                case this.cPlotDataTypeI0
+                    this.hLegend2D1 = legend(this.hAxes2D1, 'Izero');
+                    % set(this.hLegend2D1, 'FontSize', this.dSizeFont);
+            end
+            
+        end
+        
+        
+        function updateAxes1DData(this)
+            
+            
+            if  isempty(this.hAxes1D) || ...
+                ~ishandle(this.hAxes1D)
+                return
+            end
+            
+            
+            if ~isempty(this.hLines1DIDet) && ishandle(this.hLines1DIDet)
+                delete(this.hLines1DIDet);
+            end
+            
+            if ~isempty(this.hLines1DIZero) && ishandle(this.hLines1DIZero)
+                delete(this.hLines1DIZero);
+            end
+            
+            
+                    
+            switch this.uipPlotDataType.val()
+                case this.cPlotDataTypeCombined
+                    this.hLines1DIDet = plot(...
+                        this.hAxes1D, ...
+                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                    this.hLines1DIZero = plot(...
+                        this.hAxes1D, ...
+                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                    
+                case this.cPlotDataTypeIDet
+                    this.hLines1DIDet = plot(...
+                        this.hAxes1D, ...
+                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                
+                case this.cPlotDataTypeI0
+                    this.hLines1DIZero = plot(...
+                        this.hAxes1D, ...
+                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+            end
+            
+        end
+        function updateAxes2D1Data(this)
+            
+            
+             if  isempty(this.hAxes2D1) || ...
+                ~ishandle(this.hAxes2D1)
+                return
+             end
+            
+                
+             % Remove old line series
+             if ~isempty(this.hLines2D1IDet) && ishandle(this.hLines2D1IDet)
+                delete(this.hLines2D1IDet);
+             end
+             
+             if ~isempty(this.hLines2D1IZero) && ishandle(this.hLines2D1IZero)
+                delete(this.hLines2D1IZero);
+             end
+             
+                    
+            switch this.uipPlotDataType.val()
+                
+              
+                case this.cPlotDataTypeCombined
+                    this.hLines2D1IDet = plot(...
+                        this.hAxes2D1, ...
+                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                    this.hLines2D1IZero = plot(...
+                        this.hAxes2D1, ...
+                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                
+                case this.cPlotDataTypeIDet
+                    this.hLines2D1IDet = plot(...
+                        this.hAxes2D1, ...
+                        this.d1DResultParam, this.d1DResultIDet, '.-r', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+                   
+                case this.cPlotDataTypeI0
+                    this.hLines2D1IZero = plot(...
+                        this.hAxes2D1, ...
+                        this.d1DResultParam, this.d1DResultIZero, '.-b', ...
+                        'MarkerSize', this.dSizeMarker ...
+                    );
+              
+            end
+        end
         
     end 
     

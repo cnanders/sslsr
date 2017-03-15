@@ -1,3 +1,23 @@
+# 1.0.0-alpha.19
+
+### sins.main.Main
+- Separated Plot Tools panel from the plot panel
+- Added “Data” pulldown that allows selection of Idet + Izero, Idet, or Izero
+- Changed the log/lin toggle to a pulldown
+- Added a “Y Limits” pulldown with two options: “auto” and “manual”.  In “manual” mode, two additional edit boxes appear that allow the user to set the min and max values of the limites
+- Fixed a bug while plotting the 1D data of a 2D scan.  In January, the number of points in a scan was changed from “steps” to “steps” + 1.  One part of the code was not properly updated in this change and it resulted with the 1D plot showing one less data point than expected. 
+- The legend was causing many problems.  I refactored updating the legend out of updatePlot() and am now returning from any calls to the new update*Legend() methods.  Instaed I added a legend of sorts to the plot tools that has the device name (Izero or Idet) in the color of its plot marks.
+
+# 1.0.0-alpha.18
+
+### sins.main.Main
+
+- Scan folders, recipes, and result files are now appended with the value of the “Sample Metadata” field, per request, e.g., 
+- Scan-20170313-200755-Test-B/
+  - 20170313-200800-Test-B-Result.json
+  - 20170313-200801-Test-B-Result.csv
+  - 20170313-200755-Test-B-Recipe.json
+
 # 1.0.0-alpha.17
 
 ### sins.main.Main
