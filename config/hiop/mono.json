@@ -6,11 +6,17 @@
 			"slope": 1,
 			"offset": 0,
 			"precision": 3
-		}
+		},
+        {
+			"name": "eV",
+			"slope": 1239.84193,
+			"offset": 0,
+			"precision": 3,
+            "invert": "true"
+		}        
 	],
-    "min": -5,
+    "min": 0.01,
     "max": 40
-    
 }	
 	
 	
