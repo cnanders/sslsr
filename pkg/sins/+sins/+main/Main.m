@@ -3200,7 +3200,7 @@ classdef Main < HandlePlus
             % x, y active value
             
             dLeft = dLeft + 100;
-            dTop = 30;
+            dTop = 25;
             dWidth = 90;   
             this.uitxPlotX.build(...
                 this.hPanelPlotTools, ...
@@ -3211,7 +3211,7 @@ classdef Main < HandlePlus
             );
             %this.uitxPlotX.setBackgroundColor(dColorBgText);
         
-            dTop = dTop + 10;
+            dTop = dTop + 15;
             this.uitxPlotY.build(...
                 this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3222,7 +3222,7 @@ classdef Main < HandlePlus
         
             dLeft = dLeft + 100;
         
-            dTop = 30;
+            dTop = 25;
             this.uitxPlotIDetColor.build(...
                 this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3232,7 +3232,7 @@ classdef Main < HandlePlus
             );
             this.uitxPlotIDetColor.setColor([1 0 0]);
             
-            dTop = dTop + 10;
+            dTop = dTop + 15;
             this.uitxPlotIZeroColor.build(...
                this.hPanelPlotTools, ...
                 dLeft, ...
@@ -3495,8 +3495,8 @@ classdef Main < HandlePlus
         function setApis(this)
             
 
-            this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            return
+            %this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            %return
             
             
             % Temporarily set all Apis to virtual Apis
