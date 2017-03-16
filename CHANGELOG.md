@@ -1,3 +1,8 @@
+# 1.0.0-alpha.21
+
+- Upgraded to github/cnanders/mic v1.0.0-alpha.45 which supports default values for device UI in virtual mode.
+- Now set default value of wav HIO+ to 13.5 instead of 0, which is a nonsense value for wav.
+
 # 1.0.0-alpha.20
 
 - Upgraded to github/cnanders/mic v1.0.0-alpha.44 which supports inverse units in device UI elements
