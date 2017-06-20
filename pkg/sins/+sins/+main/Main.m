@@ -1741,7 +1741,7 @@ classdef Main < HandlePlus
                         case 'time'
                             fprintf(fid, '%s,', stValue.(ceNames{m}));
                         otherwise
-                            fprintf(fid, '%1.3e,', stValue.(ceNames{m}));
+                            fprintf(fid, '%1.4e,', stValue.(ceNames{m}));
                     end
                 end
                 fprintf(fid, '\n');

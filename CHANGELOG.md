@@ -1,3 +1,7 @@
+# 1.0.0-alpha.22
+
+- CSV files now use four significant digits instead of three
+
 # 1.0.0-alpha.21
 
 - Upgraded to github/cnanders/mic v1.0.0-alpha.45 which supports default values for device UI in virtual mode.
