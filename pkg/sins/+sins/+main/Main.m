@@ -65,7 +65,7 @@ classdef Main < HandlePlus
         dColorBgFigure = [200 200 200]./255;
         
         dWidth = 1500
-        dHeight = 530 % 650;
+        dHeight = 555 % 650;
         
         dWidthPanelBorder = 0;
         dWidthPad = 10;
@@ -81,7 +81,7 @@ classdef Main < HandlePlus
         dWidthSettings = 800
         dHeightSettings = 70
         
-        dHeightResult = 250
+        dHeightResult = 280
         
         dWidthOperator = 80
         dWidthDir = 350
@@ -96,8 +96,8 @@ classdef Main < HandlePlus
         
         dHeightPanelPlotTools = 65;
         
-        dWidthPanelPicoammeter = 300;
-        dHeightPanelPicoammeter = 70; % 350;
+        dWidthPanelPicoammeter = 585;
+        dHeightPanelPicoammeter = 190; % 350;
         
         dHeightHio = 25;
         dHeightHioLabels = 17;
@@ -3487,10 +3487,10 @@ classdef Main < HandlePlus
         
         function buildConnectAll(this)
             
-            dLeft = this.dWidthScan + 20;
-            dTop = 430;
+            dLeft = this.dWidthScan + 615;
+            dTop = 515;
             
-            this.uitStageApi.build(this.hFigure, dLeft, dTop, 120, this.dWidthBtn);
+            this.uitStageApi.build(this.hFigure, dLeft, dTop, 80, this.dWidthBtn);
             
             % this.uitxLabelStagesApi.build(this.hPanel, dLeft, 6 + dTop, 50, 12);
             % dLeft = dLeft + 50;
@@ -3499,9 +3499,10 @@ classdef Main < HandlePlus
         
         function setApis(this)
             
+            
 
-            %this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
-            %return
+            % this.msg('setApis() RETURNING NOT SETTING DEVICES !!!!');
+            % return
             
             
             % Temporarily set all Apis to virtual Apis
@@ -4024,6 +4025,7 @@ classdef Main < HandlePlus
                 'lAskOnApiClick', this.lHioAskOnApiClick, ...
                 'dWidthPadData', 24, ...
                 'dWidthName', 0, ...
+                'lShowOffset', true, ...
                 'lShowName', false, ...
                 'lShowRange', false, ...
                 'cLabelChannel1', 'channel 1', ...

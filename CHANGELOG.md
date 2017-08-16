@@ -1,3 +1,7 @@
+# 1.0.0-alpha.24
+
+- Resized / rearranged to support wider Keithley6482 UI.
+
 # 1.0.0-alpha.23
 
 - Updated to github/cnanders/mic v1.0.0-alpha.47 which supports configuring the offset of each channel of the Keithley6482
