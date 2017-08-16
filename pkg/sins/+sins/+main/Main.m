@@ -1801,10 +1801,15 @@ classdef Main < HandlePlus
             st.keithleyMedianFilterRank = this.keithley.uipMedianFilter1.val().u8Rank;
             %}           
             
+            % Deprecating 2017.08.16
+            % st.iZero = this.keithley.getApi().read(uint8(1));
+            % st.iDet = this.keithley.getApi().read(uint8(2));
             
-            st.iZero = this.keithley.getApi().read(uint8(1));
-            st.iDet = this.keithley.getApi().read(uint8(2));
-              
+            % 2017.08.16
+            % Now reading the calculated value which can include the offset
+            st.iZero = this.keithley.getApi().getChannel1CalcResult();
+            st.iDet = this.keithley.getApi().getChannel2CalcResult();
+            
             %{
             st.keithleyCh1Range = this.keithley.getApi().getRange(1);
             st.keithleyCh1AutoRange = this.keithley.getApi().getAutoRangeState(1);

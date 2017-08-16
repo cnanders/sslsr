@@ -1,3 +1,8 @@
+# 1.0.0-alpha.23
+
+- Updated to github/cnanders/mic v1.0.0-alpha.47 which supports configuring the offset of each channel of the Keithley6482
+- Updated Main.m to call ApiKeithley6482.getChannel1CalcResult() instead of read()
+
 # 1.0.0-alpha.22
 
 - CSV files now use four significant digits instead of three
