@@ -30,8 +30,11 @@ libfunctions('EUV_LV','-full'); %  checking to make sure functions go loaded pro
 % test things by calling CheckEnergyOK, should return 0 and 5xx
 % use testpro.exe to see what exact 5xx value should eb returned
 p=int32(0); % explicitly initi variable out of an abundence of caution
-b=int32(0);
+
 [a,b]=calllib('EUV_LV','CheckEnergyOK',p)
+
+
+[a, b] = calllib('EUV_LV', 'EncoderEnabled', p)
 
 
 
